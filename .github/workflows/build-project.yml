@@ -1,0 +1,52 @@
+name: Build Project
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:        # Allow manual triggering of the workflow from the GitHub Actions interface
+
+# Cancel previous runs if a new commit is pushed to the same PR or branch
+concurrency:
+  group: ${{ github.ref }}  # Group runs by the ref (branch or PR)
+  cancel-in-progress: true  # Cancel any ongoing runs in the same group
+
+jobs:
+  build_project:
+    runs-on: ubuntu-latest
+    name: Build Project
+    steps:
+      - name: Cleanup to free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: false
+          # all of these default to true, but feel free to set to
+          # "false" if necessary for your workflow
+          android: true
+          dotnet: false
+          haskell: false
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
+      - name: Checkout project
+        uses: actions/checkout@v6 # v6.0.0
+        with:
+          fetch-depth: 1
+          
+      - name: Build project
+        uses: leanprover/lean-action@6fe4ae6a449c9758f51250ee249ebbc7ec37ee48 # 2026-01-15
+        with:
+          build: true
+          lint: false
+          mk_all-check: false
+      
+      - name: Lint project
+        run: |
+          lake exe runLinter KernelLift
+      
+      - name: Test project
+        run: |
+          lake test

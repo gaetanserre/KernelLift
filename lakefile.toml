@@ -1,0 +1,22 @@
+name = "KernelLift"
+version = "0.1.0"
+keywords = ["math"]
+defaultTargets = ["KernelLift"]
+testDriver = "KernelLiftTests"
+
+[leanOptions]
+pp.unicode.fun = true                 # pretty-prints `fun a ↦ b`
+relaxedAutoImplicit = false
+weak.linter.mathlibStandardSet = true
+maxSynthPendingDepth = 3
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+
+[[lean_lib]]
+name = "KernelLift"
+
+[[lean_lib]]
+name = "KernelLiftTests"
+globs = ["KernelLiftTests.+"]
