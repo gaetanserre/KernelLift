@@ -181,6 +181,13 @@ def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
   setGoals savedGoals
   instantiateMVars mvar
 
+/-- Extract the original kernel equality from a lifted kernel equality -/
+def UnliftEquality (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
+  let eq ← whnfR <| ← instantiateMVars eq
+  let eLvl ← getLevelFromEq eq
+  let (homExpr, op_data, _, _) ← transformEquality eLvl eq unliftKernel
+  return (homExpr, op_data, eLvl)
+
 /-- The `kernel_unlift` tactic is the inverse of `kernel_lift`. It transforms equalities of lifted
 kernels back into equalities of the original kernels.
 
@@ -199,10 +206,9 @@ def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId 
           pure decl.type
         | none => goal.getType
     let expr ← whnfR <| ← instantiateMVars expr
-    let eLevel ← getLevelFromEq expr
-    let (homExpr, op_data, _, _) ← transformEquality eLevel expr unliftKernel
+    let (homExpr, op_data, eLvl) ← UnliftEquality expr
     let eqProofType ← mkEq expr homExpr
-    let eqProof ← mkKernelUnliftEqProof eqProofType eLevel op_data
+    let eqProof ← mkKernelUnliftEqProof eqProofType eLvl op_data
     match fvarId with
     | some fid => do
       let mvarId ← getMainGoal

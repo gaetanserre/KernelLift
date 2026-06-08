@@ -189,6 +189,16 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level)
   setGoals savedGoals
   instantiateMVars mvar
 
+/-- Lift a kernel equality to an equivalent equality where all kernels are lifted to a common
+universe level. -/
+def LiftEquality (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
+  let eq ← whnfR <| ← instantiateMVars eq
+  let univs ← collectEqKernelLevels eq
+  if univs.length == 1 then
+    throwError "All kernels are already in the same universe, no need to apply kernel_lift"
+  let maxLvl ← computeMaxLevel univs
+  let (homExpr, op_data, _, _) ← transformEquality maxLvl eq liftKernel
+  return (homExpr, op_data, maxLvl)
 
 /-- The `kernel_lift` tactic transforms a kernel equality to an equivalent equality in
 which all kernels are lifted to a common universe level.
@@ -207,12 +217,7 @@ def ApplyKernelLift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId :=
           let decl ← fid.getDecl
           pure decl.type
         | none => goal.getType
-    let expr ← whnfR <| ← instantiateMVars expr
-    let univs ← collectEqKernelLevels expr
-    if univs.length == 1 then
-      throwError "All kernels are already in the same universe, no need to apply kernel_lift"
-    let maxLvl ← computeMaxLevel univs
-    let (homExpr, op_data, _, _) ← transformEquality maxLvl expr liftKernel
+    let (homExpr, op_data, maxLvl) ← LiftEquality expr
     let eqProofType ← mkEq expr homExpr
     let eqProof ← mkKernelLiftEqProof eqProofType maxLvl op_data
     match fvarId with

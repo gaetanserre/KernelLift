@@ -78,7 +78,7 @@ instance (κ : Kernel X Y) [IsMarkovKernel κ] : IsMarkovKernel (lift (ex := ex)
   have := IsMarkovKernel.map κ ey.symm.measurable
   exact IsMarkovKernel.comap _ ex.measurable
 
-lemma lift_congr {κ : Kernel X Y} {η : Kernel X Y} :
+lemma lift_congr {κ η : Kernel X Y} :
     lift (ex := ex) (ey := ey) κ = lift (ex := ex) (ey := ey) η ↔ κ = η := by
   constructor
   · intro h
