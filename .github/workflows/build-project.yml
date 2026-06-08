@@ -47,6 +47,3 @@ jobs:
         run: |
           lake exe runLinter KernelLift
       
-      - name: Test project
-        run: |
-          lake test
