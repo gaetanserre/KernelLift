@@ -41,7 +41,7 @@ lemma lift_apply (κ : Kernel X Y) (a : X') :
     lift (ex := ex) (ey := ey) κ a = (κ.map ey.symm) (ex a) := rfl
 
 lemma lift_apply' (κ : Kernel X Y) (a : X') {s : Set Y'} (hs : MeasurableSet s) :
-    lift (ex := ex) (ey := ey) κ a s = (κ (ex a)) (⇑ey '' s) := by
+    lift (ex := ex) (ey := ey) κ a s = κ (ex a) (ey '' s) := by
   simp only [lift, coe_comap, Function.comp_apply]
   rw [map_apply' _ ey.symm.measurable _ hs, preimage_symm]
 
