@@ -6,7 +6,7 @@ Authors: Gaëtan Serré
 module
 
 import Lean.Elab.Tactic.Location
-import KernelLift.Lift
+public import KernelLift.Lift
 public import KernelLift.Tactic.LocTactic
 public import KernelLift.Tactic.Universe
 public import KernelLift.Tactic.Utils

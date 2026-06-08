@@ -11,10 +11,10 @@ public import Mathlib.Probability.Kernel.Composition.Prod
 public import Mathlib.Probability.Kernel.Composition.CompProd
 
 /-!
-# Kernel transformation utilities
+# Kernel lifting utilities
 
-This file provides helper functions for transforming between kernel expressions and
-categorical morphism expressions, including type extraction and equivalence construction.
+This file provides helper functions for lifting and unlifting kernel expressions, including type
+extraction and equivalence construction.
 
 ## Main declarations
 

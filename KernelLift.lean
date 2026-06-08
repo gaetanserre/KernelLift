@@ -6,6 +6,5 @@ public import KernelLift.Lift
 public import KernelLift.Tactic.KernelLift
 public import KernelLift.Tactic.KernelUnlift
 public import KernelLift.Tactic.LocTactic
-public import KernelLift.Tactic.Tactics
 public import KernelLift.Tactic.Universe
 public import KernelLift.Tactic.Utils
