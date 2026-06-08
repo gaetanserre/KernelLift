@@ -5,7 +5,7 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import Lean.Elab.Tactic.Location
+public meta import Lean.Elab.Tactic.Location
 
 /-!
 # Tactic location support
@@ -18,7 +18,7 @@ specified by location patterns, following the standard Lean syntax (like in `rw`
 * `applyLocTactic`: applies a tactic to goals and hypotheses at specified locations.
 -/
 
-@[expose] public section
+public meta section
 
 open Lean Elab Tactic Meta
 

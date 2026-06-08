@@ -5,9 +5,9 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import KernelLift.Lift
 public import KernelLift.Tactic.KernelLift
 import KernelLift.Tactic.Universe
+public import KernelLift.Lift
 
 /-!
 # `kernel_unlift` tactic
@@ -24,12 +24,12 @@ It transforms equalities of lifted kernels back into equalities of the original 
 * `kernel_unlift`: user-facing tactic (with location support).
 -/
 
-@[expose] public section
+public meta section
 
 open Lean Elab Tactic Meta Parser.Tactic ProbabilityTheory ProbabilityTheory.Kernel
 
 /-- Recursive transformation from lifted kernel expressions back to original kernel expressions. -/
-meta partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
+partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
     MetaM (Expr × List KernelOP) := do
   match e.getAppFn with
   | Expr.const ``Kernel.comp _ =>
@@ -109,7 +109,7 @@ meta partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP
   | _ => return (e, op_data)
 
 /-- Construct the proof of equivalence between the lifted kernel equality and the original one. -/
-meta def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
+def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
     (op_data : List KernelOP) : TacticM Expr := do
   let eLvlStx ← liftMacroM <| levelToSyntax eLvl
   let savedGoals ← getGoals
@@ -191,7 +191,7 @@ The tactic supports location specifiers like `rw` or `simp`:
 * `kernel_unlift at h ⊢` — applies to hypothesis `h` and the goal
 * `kernel_unlift at *` — applies to all hypotheses and the goal
 -/
-meta def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
+def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
   goal.withContext do
     let expr ← match fvarId with
         | some fid => do

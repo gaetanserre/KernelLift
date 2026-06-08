@@ -7,9 +7,9 @@ module
 
 import Lean.Elab.Tactic.Location
 import KernelLift.Lift
-public meta import KernelLift.Tactic.LocTactic
-public meta import KernelLift.Tactic.Universe
-public meta import KernelLift.Tactic.Utils
+public import KernelLift.Tactic.LocTactic
+public import KernelLift.Tactic.Universe
+public import KernelLift.Tactic.Utils
 import KernelLift.Tactic.Utils
 
 /-!
@@ -28,12 +28,12 @@ kernels into equivalent equalities where the kernels are lifted to a common univ
 * `kernel_lift`: user-facing tactic (with location support).
 -/
 
-@[expose] public section
+public meta section
 
 open Lean Elab Tactic Meta Parser.Tactic ProbabilityTheory ProbabilityTheory.Kernel
 
 /-- Recursive transformation from kernel expressions to lifted kernel expressions. -/
-meta partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP) :
+partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP) :
     MetaM (Expr × List KernelOP) := do
   match e.getAppFn with
   | Expr.const ``Kernel.comp _ =>
@@ -117,7 +117,7 @@ meta partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP
     return (t, op_data)
 
 /-- Construct the proof of equivalence between the original kernel equality and the lifted one. -/
-meta def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level)
+def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level)
     (op_data : List KernelOP) : TacticM Expr := do
   let maxLvlStx ← liftMacroM <| levelToSyntax maxLvl
   let savedGoals ← getGoals
@@ -200,7 +200,7 @@ The tactic supports location specifiers like `rw` or `simp`:
 * `kernel_lift at h ⊢` — applies to hypothesis `h` and the goal
 * `kernel_lift at *` — applies to all hypotheses and the goal
 -/
-meta def ApplyKernelLift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
+def ApplyKernelLift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
   goal.withContext do
     let expr ← match fvarId with
         | some fid => do

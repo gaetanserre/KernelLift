@@ -23,7 +23,7 @@ It includes conversion functions between levels and syntax, and universe level c
 expression.
 -/
 
-@[expose] public section
+public meta section
 
 open Lean Meta ProbabilityTheory
 
