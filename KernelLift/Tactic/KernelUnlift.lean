@@ -109,8 +109,8 @@ partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
   | _ => return (e, op_data)
 
 /-- Construct the proof of equivalence between the lifted kernel equality and the original one. -/
-def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
-    (op_data : List KernelOP) : TacticM Expr := do
+def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level) (op_data : List KernelOP) :
+    TacticM Expr := do
   let eLvlStx ← liftMacroM <| levelToSyntax eLvl
   let savedGoals ← getGoals
   let mvar ← mkFreshExprSyntheticOpaqueMVar eqProofType
@@ -185,7 +185,7 @@ def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
 def UnliftEquality (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
   let eq ← whnfR <| ← instantiateMVars eq
   let eLvl ← getLevelFromEq eq
-  let (homExpr, op_data, _, _) ← transformEquality eLvl eq unliftKernel
+  let (homExpr, op_data, _, _) ← transformEquality eq KernelOP <| unliftKernel eLvl
   return (homExpr, op_data, eLvl)
 
 /-- The `kernel_unlift` tactic is the inverse of `kernel_lift`. It transforms equalities of lifted

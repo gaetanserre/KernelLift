@@ -128,12 +128,12 @@ instance : ToMessageData KernelOP where
     | .Swap ex1 ex2 => m!"Swap with {ex1}, {ex2}"
 
 /-- Transform both sides of an equality and return the new equality plus metadata. -/
-def transformEquality (maxLvl : Level) (e : Expr)
-    (transform : Level → Expr → List KernelOP → MetaM (Expr × List KernelOP)) :
-    MetaM (Expr × List KernelOP × Expr × Expr) := do
+def transformEquality (e : Expr) (OP : Type)
+    (transform : Expr → List OP → MetaM (Expr × List OP)) :
+    MetaM (Expr × List OP × Expr × Expr) := do
   let e ← whnf (← zetaReduce (← instantiateMVars e))
   let e := e.consumeMData
   let some (_, lhs, rhs) := e.eq? | throwError "Expected an equality, got: {e}"
-  let (lhs', lh) ← transform maxLvl lhs []
-  let (rhs', rh) ← transform maxLvl rhs lh
+  let (lhs', lh) ← transform lhs []
+  let (rhs', rh) ← transform rhs lh
   return (← mkAppM `Eq #[lhs', rhs'], rh, lhs, rhs)

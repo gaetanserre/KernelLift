@@ -11,7 +11,7 @@ public import Mathlib.MeasureTheory.MeasurableSpace.Embedding
 # Measurable equivalences
 
 This file extends the theory of measurable equivalences, providing utilities for
-working with products and other structures.
+working with products and unit types.
 
 ## Main declarations
 

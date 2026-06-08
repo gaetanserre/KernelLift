@@ -117,8 +117,8 @@ partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP) :
     return (t, op_data)
 
 /-- Construct the proof of equivalence between the original kernel equality and the lifted one. -/
-def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level)
-    (op_data : List KernelOP) : TacticM Expr := do
+def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List KernelOP) :
+    TacticM Expr := do
   let maxLvlStx ← liftMacroM <| levelToSyntax maxLvl
   let savedGoals ← getGoals
   let mvar ← mkFreshExprSyntheticOpaqueMVar eqProofType
@@ -197,7 +197,7 @@ def LiftEquality (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
   if univs.length == 1 then
     throwError "All kernels are already in the same universe, no need to apply kernel_lift"
   let maxLvl ← computeMaxLevel univs
-  let (homExpr, op_data, _, _) ← transformEquality maxLvl eq liftKernel
+  let (homExpr, op_data, _, _) ← transformEquality eq KernelOP <| liftKernel maxLvl
   return (homExpr, op_data, maxLvl)
 
 /-- The `kernel_lift` tactic transforms a kernel equality to an equivalent equality in
