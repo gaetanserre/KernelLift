@@ -25,7 +25,7 @@ categorical morphism expressions, including type extraction and equivalence cons
 * `unfoldKernelOp`: unfolds kernel operations in an expression for easier matching.
 -/
 
-public meta section
+@[expose] public section
 
 open Lean Meta ProbabilityTheory
 
@@ -104,33 +104,34 @@ partial def getOriginalType (t : Expr) : MetaM (Expr × Level) := do
     let (Y, yLvl) ← getOriginalType args[1]!
     return (← mkAppM ``Prod #[X, Y], .max xLvl yLvl)
   | _ =>
-    let l ← getLevel (← inferType t)
-    match l with
-    | Level.succ l' => return (t, l')
-    | _ => throwError "Expected a universe level ≥ 1, got: {l}"
+    return (t, ← getDecLevel (← inferType t))
 
 /-- Kernel operations recorded during transformation for later rewriting. -/
 inductive KernelOP
   | Comp (equiv₁ equiv₂ equiv₃ : Expr)
   | ParallelComp (equiv₁ equiv₂ equiv₃ equiv₄ : Expr)
   | Prod (equiv₁ equiv₂ equiv₃ : Expr)
+  | Id (equiv : Expr)
+  | Discard (equiv : Expr)
   | Copy (equiv : Expr)
+  | Swap (equiv₁ equiv₂ : Expr)
 
 instance : ToMessageData KernelOP where
   toMessageData
-    | KernelOP.Comp ex ey et => m!"Composition with {ex}, {ey}, {et}"
-    | KernelOP.ParallelComp ex ey et ez =>
+    | .Comp ex ey et => m!"Composition with {ex}, {ey}, {et}"
+    | .ParallelComp ex ey et ez =>
       m!"Parallel composition with {ex}, {ey}, {et}, {ez}"
-    | KernelOP.Prod ex ey ez => m!"Product with {ex}, {ey}, {ez}"
-    | KernelOP.Copy ex => m!"Copy with {ex}"
+    | .Prod ex ey ez => m!"Product with {ex}, {ey}, {ez}"
+    | .Id ex => m!"Identity with {ex}"
+    | .Discard ex => m!"Discard with {ex}"
+    | .Copy ex => m!"Copy with {ex}"
+    | .Swap ex1 ex2 => m!"Swap with {ex1}, {ex2}"
 
 /-- Transform both sides of an equality and return the new equality plus metadata. -/
 def transformEquality (maxLvl : Level) (e : Expr)
     (transform : Level → Expr → List KernelOP → MetaM (Expr × List KernelOP)) :
     MetaM (Expr × List KernelOP × Expr × Expr) := do
-  let e ← instantiateMVars e
-  let e ← zetaReduce e
-  let e ← whnf e
+  let e ← whnf (← zetaReduce (← instantiateMVars e))
   let e := e.consumeMData
   let some (_, lhs, rhs) := e.eq? | throwError "Expected an equality, got: {e}"
   let (lhs', lh) ← transform maxLvl lhs []

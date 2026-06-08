@@ -5,7 +5,10 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import Lean
+public import Lean.Meta.DecLevel
+public import Lean.Meta.Transform
+public import Lean.Util.Recognizers
+import Mathlib.Probability.Kernel.Composition.Prod
 
 /-!
 # Universe level utilities
@@ -20,44 +23,57 @@ It includes conversion functions between levels and syntax, and universe level c
 expression.
 -/
 
-public meta section
+@[expose] public section
 
-open Lean Meta
+open Lean Meta ProbabilityTheory
 
-/-- Recursively traverses an expression and collects all universe levels. -/
-def collectExprUniverses.aux (e : Expr) : List Level :=
-  match e with
-  | Expr.const _ univs => univs
-  | Expr.sort u => [u]
-  | Expr.app f a => aux f ++ aux a
-  | Expr.lam _ t b _ => aux t ++ aux b
-  | Expr.forallE _ t b _ => aux t ++ aux b
-  | Expr.letE _ t v b _ => aux t ++ aux v ++ aux b
-  | Expr.mdata _ b => aux b
-  | Expr.proj _ _ b => aux b
-  | Expr.bvar _ | Expr.fvar _ | Expr.mvar _ | Expr.lit _ => []
+/-- Recursively traverses a kernel expression and collects all universe levels. -/
+partial def collectKernelLevels.aux (e : Expr) : MetaM (List Level) := do
+  match e.getAppFn with
+  | Expr.const ``Kernel.comp _ =>
+    let args := e.getAppArgs
+    let η := args[args.size - 2]!
+    let κ := args[args.size - 1]!
+    return (← collectKernelLevels.aux η) ++ (← collectKernelLevels.aux κ)
+  | Expr.const ``Kernel.parallelComp _ =>
+    let args := e.getAppArgs
+    let κ := args[args.size - 2]!
+    let η := args[args.size - 1]!
+    return (← collectKernelLevels.aux κ) ++ (← collectKernelLevels.aux η)
+  | Expr.const ``Kernel.prod _ =>
+    let args := e.getAppArgs
+    let κ := args[args.size - 2]!
+    let η := args[args.size - 1]!
+    return (← collectKernelLevels.aux κ) ++ (← collectKernelLevels.aux η)
+  | _ =>
+    let t ← inferType e
+    match t.getAppFn with
+    | Expr.const ``Kernel univs => return univs
+    | _ => throwError "Expected a kernel type, got: {e} : {t}"
 
 /-- Recursively traverse an expression and collect universe levels found.
 Returns a list of all unique universe levels encountered. -/
-def collectExprUniverses (e : Expr) : MetaM (List Level) := do
-  let e ← instantiateMVars e
-  let e ← zetaReduce e
-  return (collectExprUniverses.aux e).eraseDups
+def collectKernelLevels (e : Expr) : MetaM (List Level) := do
+  return (← collectKernelLevels.aux e).eraseDups
+
+/-- Extract all universe levels appearing in a kernel equality expression. -/
+def collectEqKernelLevels (eq : Expr) : MetaM (List Level) := do
+  let eq ← whnf (← zetaReduce (← instantiateMVars eq))
+  let eq := eq.consumeMData
+  let some (_, lhs, rhs) := eq.eq? | throwError "Expected an equality, got: {eq}"
+  let lhsKernelLevels ← collectKernelLevels lhs
+  let rhsKernelLevels ← collectKernelLevels rhs
+  return (lhsKernelLevels ++ rhsKernelLevels).eraseDups
 
 /-- Compute the maximum universe level from a list of levels. -/
-def computeMaxUniverse (levels : List Level) : MetaM Level :=
+def computeMaxLevel (levels : List Level) : MetaM Level :=
   match levels with
     | [] => throwError "Expected at least one universe level, got an empty list"
     | head :: tail => pure (tail.foldl Level.max head)
 
-/-- Get the universe level from the left side of an equality expression. -/
-def getUniverseFromEq (eq : Expr) : MetaM Level := do
-  let eq ← instantiateMVars eq
-  let eq ← zetaReduce eq
-  let eq ← whnf eq
+/-- Extract the universe level from the left side of an equality expression. -/
+def getLevelFromEq (eq : Expr) : MetaM Level := do
+  let eq ← whnf (← zetaReduce (← instantiateMVars eq))
   let eq := eq.consumeMData
   let some (_, lhs, _) := eq.eq? | throwError "Expected an equality, got: {eq}"
-  let l ← getLevel (← inferType lhs)
-  match l with
-  | Level.succ l' => return l'
-  | _ => throwError "Expected a universe level ≥ 1, got: {l}"
+  getDecLevel (← inferType lhs)

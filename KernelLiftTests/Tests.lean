@@ -3,13 +3,19 @@ Copyright (c) 2026 Gaëtan Serré. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Gaëtan Serré
 -/
+module
 
-import KernelLift.Tactic.Tactics
-import Mathlib.Probability.Kernel.Composition.KernelLemmas
-import Mathlib.Probability.Kernel.Deterministic
+public import KernelLift.Tactic.Tactics
+public import Mathlib.Probability.Kernel.Composition.KernelLemmas
+public import Mathlib.Probability.Kernel.Deterministic
+
+/-!
+# Tests for `kernel_lift` and `kernel_unlift` tactics
+-/
+
+@[expose] public section
 
 open MeasureTheory ProbabilityTheory
-
 
 variable {X Y Z T X' Y' Z' : Type*} [MeasurableSpace X] [MeasurableSpace Y]
   [MeasurableSpace Z] [MeasurableSpace T] [MeasurableSpace X'] [MeasurableSpace Y']

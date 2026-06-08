@@ -37,6 +37,14 @@ variable {X : Type x} [MeasurableSpace X] {Y : Type y} [MeasurableSpace Y]
 /-- Cast a kernel to different types in the same universe level, using measurable equivalences. -/
 noncomputable def lift (κ : Kernel X Y) : Kernel X' Y' := (κ.map ey.symm).comap ex ex.measurable
 
+lemma lift_apply (κ : Kernel X Y) (a : X') :
+    lift (ex := ex) (ey := ey) κ a = (κ.map ey.symm) (ex a) := rfl
+
+lemma lift_apply' (κ : Kernel X Y) (a : X') {s : Set Y'} (hs : MeasurableSet s) :
+    lift (ex := ex) (ey := ey) κ a s = (κ (ex a)) (⇑ey '' s) := by
+  simp only [lift, coe_comap, Function.comp_apply]
+  rw [map_apply' _ ey.symm.measurable _ hs, preimage_symm]
+
 lemma isSFinite_lift (κ : Kernel X Y) :
     IsSFiniteKernel κ ↔ IsSFiniteKernel (lift (ex := ex) (ey := ey) κ) := by
   constructor
@@ -44,7 +52,6 @@ lemma isSFinite_lift (κ : Kernel X Y) :
     simp only [lift]
     infer_instance
   · rintro ⟨κs, hfinite_κs, h⟩
-    simp only [lift] at h
     constructor
     let κs' (i : ℕ) := ((κs i).map ey).comap ex.symm ex.symm.measurable
     refine ⟨κs', ⟨fun i ↦ ?_, ?_⟩⟩
@@ -53,48 +60,53 @@ lemma isSFinite_lift (κ : Kernel X Y) :
       ext a s hs
       replace h := DFunLike.congr (x := ey.symm '' s) (DFunLike.congr (x := ex.symm a) h rfl) rfl
       rw [sum_apply, Measure.sum_apply] at h ⊢
-      · rw [comap_apply', map_apply'] at h
-        · simp only [apply_symm_apply, preimage_image] at h
-          convert h with x
-          rw [comap_apply', map_apply']
-          · congr 1
-            exact (image_symm ey s).symm
-          all_goals try fun_prop
-          all_goals measurability
-        all_goals try fun_prop
+      · rw [lift_apply'] at h
+        · convert h with x
+          · simp
+          · rw [image_symm]
+            simp
+          · simp only [coe_comap, Function.comp_apply]
+            rw [map_apply' _ ey.measurable _ hs, image_symm]
         all_goals measurability
       all_goals measurability
+
+instance (κ : Kernel X Y) [IsSFiniteKernel κ] : IsSFiniteKernel (lift (ex := ex) (ey := ey) κ) :=
+  (isSFinite_lift κ).mp ‹_›
+
+instance (κ : Kernel X Y) [IsMarkovKernel κ] : IsMarkovKernel (lift (ex := ex) (ey := ey) κ) := by
+  simp only [lift]
+  have := IsMarkovKernel.map κ ey.symm.measurable
+  exact IsMarkovKernel.comap _ ex.measurable
 
 lemma lift_congr {κ : Kernel X Y} {η : Kernel X Y} :
     lift (ex := ex) (ey := ey) κ = lift (ex := ex) (ey := ey) η ↔ κ = η := by
   constructor
   · intro h
     ext a s hs
-    replace h := DFunLike.congr (x := ex.symm a) h rfl
-    simp only [lift, coe_comap, Function.comp_apply, apply_symm_apply] at h
-    rw [map_apply, map_apply] at h
-    · replace h := DFunLike.congr (x := ey.symm '' s) h rfl
-      rw [Measure.map_apply, Measure.map_apply] at h
-      · simpa using h
-      all_goals try fun_prop
-      all_goals measurability
-    all_goals fun_prop
+    replace h := DFunLike.congr (x := ey.symm '' s) (DFunLike.congr (x := ex.symm a) h rfl) rfl
+    rw [lift_apply', lift_apply'] at h
+    · simp only [apply_symm_apply] at h
+      rwa [image_symm, image_preimage] at h
+    · measurability
+    · measurability
   · grind
 
 variable {T : Type t} [MeasurableSpace T] {Z : Type z} [MeasurableSpace Z]
   {T' : Type w} [MeasurableSpace T'] {Z' : Type w} [MeasurableSpace Z']
   {et : T' ≃ᵐ T} {ez : Z' ≃ᵐ Z}
 
-lemma lift_comp (η : Kernel X Y) (κ : Kernel Z X) :
+lemma comp_lift (η : Kernel X Y) (κ : Kernel Z X) :
   (lift (ex := ex) (ey := ey) η).comp (lift (ex := ez) (ey := ex) κ) =
     lift (ex := ez) (ey := ey) (η.comp κ) := by
-  simp only [lift]
-  ext
-  rw [map_comp, ← comp_map, comap_apply, comp_apply', comp_apply', map_apply, comap_apply,
-    map_apply]
-  · simp
+  ext _ _ hs
+  rw [lift_apply', comp_apply', comp_apply', lift_apply, lintegral_map]
+  · congr with y
+    rw [lift_apply']
+    · simp
+    · exact hs
   all_goals try fun_prop
-  all_goals measurability
+  all_goals try measurability
+  · exact Kernel.measurable_coe _ hs
 
 lemma parallelComp_lift (κ : Kernel X Y) (η : Kernel T Z) :
   (lift (ex := ex) (ey := ey) κ) ∥ₖ (lift (ex := et) (ey := ez) η) =
@@ -114,6 +126,43 @@ lemma parallelComp_lift (κ : Kernel X Y) (η : Kernel T Z) :
   · rfl
   all_goals fun_prop
 
+lemma id_lift : Kernel.id (α := X') = lift (ex := ex) (ey := ex) (Kernel.id (α := X)) := by
+  ext _ _ hs
+  rw [lift_apply' _ _ hs]
+  simp only [id_apply]
+  rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
+  · refine Set.indicator_eq_indicator ?_ rfl
+    simp_all only [Set.mem_image, EmbeddingLike.apply_eq_iff_eq, exists_eq_right]
+  all_goals measurability
+
+lemma discard_lift : discard.{_, w} X' = lift (ex := ex) (ey := punit) (discard X) := by
+  ext _ _ hs
+  rw [lift_apply' _ _ hs]
+  simp only [discard_apply, MeasurableSpace.measurableSet_top, Measure.dirac_apply']
+  refine Set.indicator_eq_indicator ?_ rfl
+  grind
+
+lemma copy_lift : copy X' = lift (ex := ex) (ey := ex.prod ex) (copy X) := by
+  ext _ _ hs
+  rw [lift_apply' _ _ hs]
+  simp only [copy_apply]
+  rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
+  · refine Set.indicator_eq_indicator ?_ rfl
+    simp [MeasurableEquiv.prod]
+  · measurability
+
+lemma swap_lift : swap X' Y' = lift (ex := ex.prod ey) (ey := ey.prod ex) (swap X Y) := by
+  ext a s hs
+  rw [lift_apply' _ _ hs]
+  simp only [swap_apply]
+  rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
+  · refine Set.indicator_eq_indicator ?_ rfl
+    simp only [MeasurableEquiv.prod, MeasurableEquiv.coe_mk, Equiv.coe_fn_mk, Prod.swap_prod_mk,
+      Set.mem_image, Prod.mk.injEq, EmbeddingLike.apply_eq_iff_eq, Prod.exists,
+      exists_eq_right_right, exists_eq_right]
+    grind
+  · measurability
+
 lemma prod_lift (κ : Kernel X Y) (η : Kernel X Z) :
   (lift (ex := ex) (ey := ey) κ) ×ₖ (lift (ex := ex) (ey := ez) η) =
     lift (ex := ex) (ey := ey.prod ez) (κ ×ₖ η) := by
@@ -126,53 +175,13 @@ lemma prod_lift (κ : Kernel X Y) (η : Kernel X Z) :
   · simp [hη, (isSFinite_lift η).not.mpr hη]
     simp [lift]
   simp only [prod]
-  rw [← lift_comp (ex := ex.prod ex), ← parallelComp_lift]
-  congr
-  ext
-  simp only [lift, coe_comap, Function.comp_apply]
-  rw [copy_apply, Measure.dirac_apply', map_apply', copy_apply, Measure.dirac_apply']
-  · refine Set.indicator_eq_indicator ?_ rfl
-    simp [MeasurableEquiv.prod]
-  all_goals try fun_prop
-  all_goals try measurability
-
-lemma copy_lift : copy X' = lift (ex := ex) (ey := ex.prod ex) (copy X) := by
-  sorry
+  rw [← comp_lift (ex := ex.prod ex), ← parallelComp_lift, ← copy_lift]
 
 instance {κ : Kernel X Y} [IsDeterministic κ] :
     IsDeterministic (lift (ex := ex) (ey := ey) κ) where
   parallelComp_self_comp_copy' := by
-    have h := κ.parallelComp_self_comp_copy
-    ext a s hs
-    replace h := DFunLike.congr (x := ey.prod ey '' s) (DFunLike.congr (x := ex a) h rfl) rfl
-    simp only [lift]
-    rw [comp_apply', comp_apply', copy_apply, lintegral_dirac'] at h ⊢
-    · convert h
-      · rw [parallelComp_apply', parallelComp_apply', lintegral_comap, lintegral_map]
-        · simp only [coe_comap, Function.comp_apply]
-          congr with y
-          rw [map_apply']
-          · congr 1
-            simp [MeasurableEquiv.prod]
-            aesop
-          all_goals try fun_prop
-          all_goals measurability
-        all_goals try fun_prop
-        all_goals try measurability
-        exact measurable_measure_prodMk_left hs
-      · rw [lintegral_comap, lintegral_map]
-        · congr with y
-          simp only [copy_apply]
-          rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
-          · refine Set.indicator_eq_indicator ?_ rfl
-            simp [MeasurableEquiv.prod]
-            aesop
-          · measurability
-        · exact ey.symm.measurable
-        · exact Kernel.measurable_coe _ hs
-    · exact Kernel.measurable_coe _ hs
-    · exact Kernel.measurable_coe _ (by measurability)
-    all_goals measurability
-
+    rw [parallelComp_lift, copy_lift (ex := ex), copy_lift (ex := ey), comp_lift, comp_lift,
+      lift_congr]
+    exact κ.parallelComp_self_comp_copy
 
 end ProbabilityTheory.Kernel

@@ -1,13 +1,17 @@
-# Lift
+# Kernel-Lift
 
-## GitHub configuration
+Tactics for unifying universe levels when working with probability kernels in Lean.
 
-To set up your new GitHub repository, follow these steps:
+## Description
 
-* Under your repository name, click **Settings**.
-* In the **Actions** section of the sidebar, click "General".
-* Check the box **Allow GitHub Actions to create and approve pull requests**.
-* Click the **Pages** section of the settings sidebar.
-* In the **Source** dropdown menu, select "GitHub Actions".
+Kernel-Lift provides two complementary tactics for working with probability kernels:
 
-After following the steps above, you can remove this section from the README file.
+- **`kernel_lift` tactic**: Lifts kernels to a common universe level. When working with kernels of different universe levels, this tactic automatically transforms them to operate at a unified level.
+
+- **`kernel_unlift` tactic**: Reverses the lifting process. Transforms lifted kernels back to their original universe levels.
+
+These tactics handle several kernel operations and primitives: composition, parallel composition, product, identity, discard, copy, and swap.
+
+## Usage
+
+See [`Tests.lean`](KernelLiftTests/Tests.lean) for examples of using the available tactics.

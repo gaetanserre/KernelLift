@@ -5,7 +5,9 @@ Authors: Gaëtan Serré
 -/
 module
 
+public import KernelLift.Lift
 public import KernelLift.Tactic.KernelLift
+import KernelLift.Tactic.Universe
 
 /-!
 # `kernel_unlift` tactic
@@ -22,12 +24,12 @@ It transforms equalities of lifted kernels back into equalities of the original 
 * `kernel_unlift`: user-facing tactic (with location support).
 -/
 
-public meta section
+@[expose] public section
 
 open Lean Elab Tactic Meta Parser.Tactic ProbabilityTheory ProbabilityTheory.Kernel
 
 /-- Recursive transformation from lifted kernel expressions back to original kernel expressions. -/
-partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
+meta partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
     MetaM (Expr × List KernelOP) := do
   match e.getAppFn with
   | Expr.const ``Kernel.comp _ =>
@@ -70,14 +72,36 @@ partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
     let ez ← constructMeasurableEquiv Z zLvl eLvl
     let OPProd := .Prod ex ey ez
     return (← mkAppM ``Kernel.prod #[κ, η], OPProd :: lη)
+  | Expr.const ``Kernel.id _ =>
+    let (X', _, _, _) ← getTypesFromKernel e
+    let (X, xLvl) ← getOriginalType X'
+    let ex ← constructMeasurableEquiv X xLvl eLvl
+    let mX ← synthInstance (mkApp (Expr.const ``MeasurableSpace [xLvl]) X)
+    let OPId := .Id ex
+    return (← mkAppOptM ``Kernel.id #[X, mX], OPId :: op_data)
+  | Expr.const ``Kernel.discard _ =>
+    let (X', _, _, _) ← getTypesFromKernel e
+    let (X, xLvl) ← getOriginalType X'
+    let ex ← constructMeasurableEquiv X xLvl eLvl
+    let OPDiscard := .Discard ex
+    let discard_const := Expr.const ``Kernel.discard [xLvl, 0]
+    return (← mkAppOptM' discard_const #[X, none], OPDiscard :: op_data)
   | Expr.const ``Kernel.copy _ =>
     let (X', _, _, _) ← getTypesFromKernel e
     let (X, xLvl) ← getOriginalType X'
-    logInfo m!"Unlifting copy kernel with type {X'} back to original type {X}"
     let ex ← constructMeasurableEquiv X xLvl eLvl
-    logInfo m!"Constructed measurable equivalence {ex} for copy kernel unlift"
     let OPCopy := .Copy ex
     return (← mkAppOptM ``Kernel.copy #[X, none], OPCopy :: op_data)
+  | Expr.const ``Kernel.swap _ =>
+    let args := e.getAppArgs
+    let X' := args[0]!
+    let Y' := args[1]!
+    let (X, xLvl) ← getOriginalType X'
+    let (Y, yLvl) ← getOriginalType Y'
+    let ex ← constructMeasurableEquiv X xLvl eLvl
+    let ey ← constructMeasurableEquiv Y yLvl eLvl
+    let OPSwap := .Swap ex ey
+    return (← mkAppOptM ``Kernel.swap #[X, Y, none, none], OPSwap :: op_data)
   | Expr.const ``Kernel.lift _ =>
     let args := e.getAppArgs
     let κ := args[args.size - 1]!
@@ -85,7 +109,7 @@ partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
   | _ => return (e, op_data)
 
 /-- Construct the proof of equivalence between the lifted kernel equality and the original one. -/
-def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
+meta def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
     (op_data : List KernelOP) : TacticM Expr := do
   let eLvlStx ← liftMacroM <| levelToSyntax eLvl
   let savedGoals ← getGoals
@@ -94,92 +118,63 @@ def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level)
   setGoals [mvarId]
   let op_data := op_data.reverse
   evalTactic (← `(tactic| apply propext))
-  evalTactic (← `(tactic| constructor))
-  let goalsAfterConstructor ← getGoals
-  match goalsAfterConstructor with
-  | [forwardGoal, backwardGoal] =>
-    setGoals [backwardGoal]
-    evalTactic (← `(tactic| intro h))
-    for op in op_data do
-      match op with
-      | .Comp equivX equivY equivZ =>
-        let equivXStx ← Term.exprToSyntax equivX
-        let equivYStx ← Term.exprToSyntax equivY
-        let equivZStx ← Term.exprToSyntax equivZ
-        evalTactic (← `(tactic| nth_rw 1 [
-          lift_comp (ex := $equivXStx) (ey := $equivYStx) (ez := $equivZStx)]))
-      | .ParallelComp equivX equivY equivT equivZ =>
-        let equivXStx ← Term.exprToSyntax equivX
-        let equivYStx ← Term.exprToSyntax equivY
-        let equivTStx ← Term.exprToSyntax equivT
-        let equivZStx ← Term.exprToSyntax equivZ
-        evalTactic (← `(tactic| nth_rw 1 [
-          parallelComp_lift
-          (ex := $equivXStx)
-          (ey := $equivYStx)
-          (et := $equivTStx)
-          (ez := $equivZStx)
-        ]))
-      | .Prod equivX equivY equivZ =>
-        let equivXStx ← Term.exprToSyntax equivX
-        let equivYStx ← Term.exprToSyntax equivY
-        let equivZStx ← Term.exprToSyntax equivZ
-        evalTactic (← `(tactic| nth_rw 1 [
-          prod_lift
-          (ex := $equivXStx)
-          (ey := $equivYStx)
-          (ez := $equivZStx)
-        ]))
-      | .Copy equivX =>
-        let equivXStx ← Term.exprToSyntax equivX
-        evalTactic (← `(tactic| nth_rw 1 [
-          copy_lift
-          (ex := $equivXStx)
-        ]))
-    evalTactic (← `(tactic| rwa [lift_congr.{_, _, $eLvlStx}]))
-
-    setGoals [forwardGoal]
-    evalTactic (← `(tactic| intro h))
-    for op in op_data do
-      match op with
-      | .Comp equivX equivY equivZ =>
-        let equivXStx ← Term.exprToSyntax equivX
-        let equivYStx ← Term.exprToSyntax equivY
-        let equivZStx ← Term.exprToSyntax equivZ
-        evalTactic (← `(tactic| nth_rw 1 [
-          lift_comp (ex := $equivXStx) (ey := $equivYStx) (ez := $equivZStx)] at h))
-      | .ParallelComp equivX equivY equivT equivZ =>
-        let equivXStx ← Term.exprToSyntax equivX
-        let equivYStx ← Term.exprToSyntax equivY
-        let equivTStx ← Term.exprToSyntax equivT
-        let equivZStx ← Term.exprToSyntax equivZ
-        evalTactic (← `(tactic| nth_rw 1 [
-          parallelComp_lift
-          (ex := $equivXStx)
-          (ey := $equivYStx)
-          (et := $equivTStx)
-          (ez := $equivZStx)
-        ] at h))
-      | .Prod equivX equivY equivZ =>
-        let equivXStx ← Term.exprToSyntax equivX
-        let equivYStx ← Term.exprToSyntax equivY
-        let equivZStx ← Term.exprToSyntax equivZ
-        evalTactic (← `(tactic| nth_rw 1 [
-          prod_lift
-          (ex := $equivXStx)
-          (ey := $equivYStx)
-          (ez := $equivZStx)
-        ] at h))
-      | .Copy equivX =>
-        let equivXStx ← Term.exprToSyntax equivX
-        evalTactic (← `(tactic| nth_rw 1 [
-          copy_lift
-          (ex := $equivXStx)
-        ] at h))
-    evalTactic (← `(tactic| rwa [lift_congr.{_, _, $eLvlStx}] at h))
-  | _ =>
-    setGoals savedGoals
-    throwError "Expected exactly two goals after `constructor`"
+  for op in op_data do
+    match op with
+    | .Comp equivX equivY equivZ =>
+      let equivXStx ← Term.exprToSyntax equivX
+      let equivYStx ← Term.exprToSyntax equivY
+      let equivZStx ← Term.exprToSyntax equivZ
+      evalTactic (← `(tactic| nth_rw 1 [
+        comp_lift (ex := $equivXStx) (ey := $equivYStx) (ez := $equivZStx)]))
+    | .ParallelComp equivX equivY equivT equivZ =>
+      let equivXStx ← Term.exprToSyntax equivX
+      let equivYStx ← Term.exprToSyntax equivY
+      let equivTStx ← Term.exprToSyntax equivT
+      let equivZStx ← Term.exprToSyntax equivZ
+      evalTactic (← `(tactic| nth_rw 1 [
+        parallelComp_lift
+        (ex := $equivXStx)
+        (ey := $equivYStx)
+        (et := $equivTStx)
+        (ez := $equivZStx)
+      ]))
+    | .Prod equivX equivY equivZ =>
+      let equivXStx ← Term.exprToSyntax equivX
+      let equivYStx ← Term.exprToSyntax equivY
+      let equivZStx ← Term.exprToSyntax equivZ
+      evalTactic (← `(tactic| nth_rw 1 [
+        prod_lift
+        (ex := $equivXStx)
+        (ey := $equivYStx)
+        (ez := $equivZStx)
+      ]))
+    | .Id equivX =>
+      let equivXStx ← Term.exprToSyntax equivX
+      evalTactic (← `(tactic| nth_rw 1 [
+        id_lift
+        (ex := $equivXStx)
+      ]))
+    | .Discard equivX =>
+      let equivXStx ← Term.exprToSyntax equivX
+      evalTactic (← `(tactic| nth_rw 1 [
+        discard_lift
+        (ex := $equivXStx)
+      ]))
+    | .Copy equivX =>
+      let equivXStx ← Term.exprToSyntax equivX
+      evalTactic (← `(tactic| nth_rw 1 [
+        copy_lift
+        (ex := $equivXStx)
+      ]))
+    | .Swap equivX equivY =>
+      let equivXStx ← Term.exprToSyntax equivX
+      let equivYStx ← Term.exprToSyntax equivY
+      evalTactic (← `(tactic| nth_rw 1 [
+        swap_lift
+        (ex := $equivXStx)
+        (ey := $equivYStx)
+      ]))
+  evalTactic (← `(tactic| rw [lift_congr.{_, _, $eLvlStx}]))
   if !(← getGoals).isEmpty then
     setGoals savedGoals
     throwError "Failed to solve all goals while building kernel_lift equivalence proof"
@@ -196,7 +191,7 @@ The tactic supports location specifiers like `rw` or `simp`:
 * `kernel_unlift at h ⊢` — applies to hypothesis `h` and the goal
 * `kernel_unlift at *` — applies to all hypotheses and the goal
 -/
-def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
+meta def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
   goal.withContext do
     let expr ← match fvarId with
         | some fid => do
@@ -204,7 +199,7 @@ def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId 
           pure decl.type
         | none => goal.getType
     let expr ← whnfR <| ← instantiateMVars expr
-    let eLevel ← getUniverseFromEq expr
+    let eLevel ← getLevelFromEq expr
     let (homExpr, op_data, _, _) ← transformEquality eLevel expr unliftKernel
     let eqProofType ← mkEq expr homExpr
     let eqProof ← mkKernelUnliftEqProof eqProofType eLevel op_data
