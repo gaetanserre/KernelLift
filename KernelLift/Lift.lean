@@ -132,16 +132,15 @@ lemma id_lift : Kernel.id (α := X') = Kernel.id.lift (ex := ex) (ey := ex) := b
   rw [lift_apply' _ _ hs]
   simp only [id_apply]
   rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
-  · refine Set.indicator_eq_indicator ?_ rfl
-    simp_all only [Set.mem_image, EmbeddingLike.apply_eq_iff_eq, exists_eq_right]
+  · exact Set.indicator_eq_indicator (by simp) rfl
   all_goals measurability
 
 lemma discard_lift : discard.{_, w} X' = (discard X).lift (ex := ex) (ey := punit) := by
   ext _ _ hs
   rw [lift_apply' _ _ hs]
   simp only [discard_apply, MeasurableSpace.measurableSet_top, Measure.dirac_apply']
-  refine Set.indicator_eq_indicator ?_ rfl
-  grind
+  exact Set.indicator_eq_indicator (by grind) rfl
+
 
 lemma copy_lift : copy X' = (copy X).lift (ex := ex) (ey := ex.prod ex) := by
   ext _ _ hs
