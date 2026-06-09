@@ -26,7 +26,7 @@ extraction and equivalence construction.
 
 public meta section
 
-open Lean Meta ProbabilityTheory
+open Lean Meta ProbabilityTheory Elab Term
 
 /-- Convert a Level to Syntax for use in tactic quotations. -/
 partial def levelToSyntax (lvl : Level) : MacroM (TSyntax `level) := do
@@ -45,6 +45,9 @@ partial def levelToSyntax (lvl : Level) : MacroM (TSyntax `level) := do
     let l1Stx : TSyntax `level ← levelToSyntax l1
     let l2Stx : TSyntax `level ← levelToSyntax l2
     `(level| imax $l1Stx $l2Stx)
+
+def exprsToSyntax (exprs : Array Expr) : TermElabM (Array Term) := do
+  exprs.mapM Term.exprToSyntax
 
 /-- Extract `(X, Y, u, v)` from an expression of type `Kernel X Y`. -/
 def getTypesFromKernel (κ : Expr) : MetaM (Expr × Expr × Level × Level) := do
@@ -107,26 +110,26 @@ partial def getOriginalType (t : Expr) : MetaM (Expr × Level) := do
 
 /-- Kernel operations recorded during transformation for later rewriting. -/
 inductive KernelOP
-  | Comp (equiv₁ equiv₂ equiv₃ : Expr)
-  | ParallelComp (equiv₁ equiv₂ equiv₃ equiv₄ : Expr)
-  | Prod (equiv₁ equiv₂ equiv₃ : Expr)
-  | CompProd (equiv₁ equiv₂ equiv₃ : Expr)
-  | Id (equiv : Expr)
-  | Discard (equiv : Expr)
-  | Copy (equiv : Expr)
-  | Swap (equiv₁ equiv₂ : Expr)
+  | Comp (ex ey ez : Expr)
+  | ParallelComp (ez ey ez et : Expr)
+  | Prod (ex ey ez : Expr)
+  | CompProd (ex ey ez : Expr)
+  | Id (ex : Expr)
+  | Discard (ex : Expr)
+  | Copy (ex : Expr)
+  | Swap (ex ey : Expr)
 
 instance : ToMessageData KernelOP where
   toMessageData
-    | .Comp ex ey et => m!"Composition with {ex}, {ey}, {et}"
-    | .ParallelComp ex ey et ez =>
-      m!"Parallel composition with {ex}, {ey}, {et}, {ez}"
+    | .Comp ex ey ez => m!"Composition with {ex}, {ey}, {ez}"
+    | .ParallelComp ex ey ez et =>
+      m!"Parallel composition with {ex}, {ey}, {ez}, {et}"
     | .Prod ex ey ez => m!"Product with {ex}, {ey}, {ez}"
-    | .CompProd ex1 ex2 ex3 => m!"CompProd with {ex1}, {ex2}, {ex3}"
+    | .CompProd ex ey ez => m!"CompProd with {ex}, {ey}, {ez}"
     | .Id ex => m!"Identity with {ex}"
     | .Discard ex => m!"Discard with {ex}"
     | .Copy ex => m!"Copy with {ex}"
-    | .Swap ex1 ex2 => m!"Swap with {ex1}, {ex2}"
+    | .Swap ex ey => m!"Swap with {ex}, {ey}"
 
 /-- Transform both sides of an equality and return the new equality plus metadata. -/
 def transformEquality (e : Expr) (OP : Type)

@@ -92,9 +92,9 @@ lemma lift_congr {κ η : Kernel X Y} :
     · measurability
   · grind
 
-variable {T : Type t} [MeasurableSpace T] {Z : Type z} [MeasurableSpace Z]
-  {T' : Type w} [MeasurableSpace T'] {Z' : Type w} [MeasurableSpace Z']
-  {et : T' ≃ᵐ T} {ez : Z' ≃ᵐ Z}
+variable {Z : Type z} [MeasurableSpace Z] {T : Type t} [MeasurableSpace T]
+  {Z' : Type w} [MeasurableSpace Z'] {T' : Type w} [MeasurableSpace T']
+  {ez : Z' ≃ᵐ Z} {et : T' ≃ᵐ T}
 
 lemma comp_lift (η : Kernel X Y) (κ : Kernel Z X) :
     (lift (ex := ex) (ey := ey) η).comp (lift (ex := ez) (ey := ex) κ) =
@@ -102,22 +102,20 @@ lemma comp_lift (η : Kernel X Y) (κ : Kernel Z X) :
   ext _ _ hs
   rw [lift_apply', comp_apply', comp_apply', lift_apply, lintegral_map]
   · congr with y
-    rw [lift_apply']
-    · simp
-    · exact hs
+    simp [lift_apply' _ _ hs]
   all_goals try fun_prop
   all_goals try measurability
   · exact Kernel.measurable_coe _ hs
 
-lemma parallelComp_lift (κ : Kernel X Y) (η : Kernel T Z) :
-    (lift (ex := ex) (ey := ey) κ) ∥ₖ (lift (ex := et) (ey := ez) η) =
-      lift (ex := ex.prod et) (ey := ey.prod ez) (κ ∥ₖ η) := by
+lemma parallelComp_lift (κ : Kernel X Y) (η : Kernel Z T) :
+    (lift (ex := ex) (ey := ey) κ) ∥ₖ (lift (ex := ez) (ey := et) η) =
+      lift (ex := ex.prod ez) (ey := ey.prod et) (κ ∥ₖ η) := by
   by_cases hκ : IsSFiniteKernel <| lift (ex := ex) (ey := ey) κ
   swap
   · simp only [hκ, not_false_eq_true, parallelComp_of_not_isSFiniteKernel_left,
     (isSFinite_lift κ).not.mpr hκ]
     simp [lift]
-  by_cases hη : IsSFiniteKernel <| lift (ex := et) (ey := ez) η
+  by_cases hη : IsSFiniteKernel <| lift (ex := ez) (ey := et) η
   swap
   · simp only [hη, not_false_eq_true, parallelComp_of_not_isSFiniteKernel_right,
     (isSFinite_lift η).not.mpr hη]

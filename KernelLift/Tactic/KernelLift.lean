@@ -40,54 +40,54 @@ partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP) :
     let args := e.getAppArgs
     let η := args[args.size - 2]!
     let κ := args[args.size - 1]!
-    let (η', lη) ← liftKernel maxLvl η op_data
-    let (κ', lκ) ← liftKernel maxLvl κ lη
     let (X, Y, xLvl, yLvl) ← getTypesFromKernel η
     let (Z, _, tLvl, _) ← getTypesFromKernel κ
     let ex ← constructMeasurableEquiv X xLvl maxLvl
     let ey ← constructMeasurableEquiv Y yLvl maxLvl
     let ez ← constructMeasurableEquiv Z tLvl maxLvl
     let OPComp := .Comp ex ey ez
+    let (η', lη) ← liftKernel maxLvl η op_data
+    let (κ', lκ) ← liftKernel maxLvl κ lη
     return (← mkAppM ``Kernel.comp #[η', κ'], OPComp :: lκ)
   | Expr.const ``Kernel.parallelComp _ =>
     let args := e.getAppArgs
     let κ := args[args.size - 2]!
     let η := args[args.size - 1]!
-    let(κ', lκ) ← liftKernel maxLvl κ op_data
-    let (η', lη) ← liftKernel maxLvl η lκ
     let (X, Y, xLvl, yLvl) ← getTypesFromKernel κ
-    let (T, Z, tLvl, zLvl) ← getTypesFromKernel η
+    let (Z, T, zLvl, tLvl) ← getTypesFromKernel η
     let ex ← constructMeasurableEquiv X xLvl maxLvl
     let ey ← constructMeasurableEquiv Y yLvl maxLvl
-    let et ← constructMeasurableEquiv T tLvl maxLvl
     let ez ← constructMeasurableEquiv Z zLvl maxLvl
-    let OPParallelComp := .ParallelComp ex ey et ez
+    let et ← constructMeasurableEquiv T tLvl maxLvl
+    let OPParallelComp := .ParallelComp ex ey ez et
+    let(κ', lκ) ← liftKernel maxLvl κ op_data
+    let (η', lη) ← liftKernel maxLvl η lκ
     return (← mkAppM ``Kernel.parallelComp #[κ', η'], OPParallelComp :: lη)
   | Expr.const ``Kernel.prod _ =>
     let args := e.getAppArgs
     let κ := args[args.size - 2]!
     let η := args[args.size - 1]!
-    let (κ', lκ) ← liftKernel maxLvl κ op_data
-    let (η', lη) ← liftKernel maxLvl η lκ
     let (X, Y, xLvl, yLvl) ← getTypesFromKernel κ
     let (_, Z, _, zLvl) ← getTypesFromKernel η
     let ex ← constructMeasurableEquiv X xLvl maxLvl
     let ey ← constructMeasurableEquiv Y yLvl maxLvl
     let ez ← constructMeasurableEquiv Z zLvl maxLvl
     let OPProd := .Prod ex ey ez
+    let (κ', lκ) ← liftKernel maxLvl κ op_data
+    let (η', lη) ← liftKernel maxLvl η lκ
     return (← mkAppM ``Kernel.prod #[κ', η'], OPProd :: lη)
   | Expr.const ``Kernel.compProd _ =>
     let args := e.getAppArgs
     let κ := args[args.size - 2]!
     let η := args[args.size - 1]!
-    let (κ', lκ) ← liftKernel maxLvl κ op_data
-    let (η', lη) ← liftKernel maxLvl η lκ
     let (X, Y, xLvl, yLvl) ← getTypesFromKernel κ
     let (_, Z, _, zLvl) ← getTypesFromKernel η
     let ex ← constructMeasurableEquiv X xLvl maxLvl
     let ey ← constructMeasurableEquiv Y yLvl maxLvl
     let ez ← constructMeasurableEquiv Z zLvl maxLvl
     let OPCompProd := .CompProd ex ey ez
+    let (κ', lκ) ← liftKernel maxLvl κ op_data
+    let (η', lη) ← liftKernel maxLvl η lκ
     return (← mkAppM ``Kernel.compProd #[κ', η'], OPCompProd :: lη)
   | Expr.const ``Kernel.id _ =>
     let (X, _, xLvl, _) ← getTypesFromKernel e
@@ -141,69 +141,59 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
   evalTactic (← `(tactic| apply propext))
   for op in op_data do
     match op with
-    | .Comp equivX equivY equivZ =>
-      let equivXStx ← Term.exprToSyntax equivX
-      let equivYStx ← Term.exprToSyntax equivY
-      let equivZStx ← Term.exprToSyntax equivZ
+    | .Comp ex ey ez =>
+      let terms ← exprsToSyntax #[ex, ey, ez]
       evalTactic (← `(tactic| nth_rw 1 [
-        comp_lift (ex := $equivXStx) (ey := $equivYStx) (ez := $equivZStx)]))
-    | .ParallelComp equivX equivY equivT equivZ =>
-      let equivXStx ← Term.exprToSyntax equivX
-      let equivYStx ← Term.exprToSyntax equivY
-      let equivTStx ← Term.exprToSyntax equivT
-      let equivZStx ← Term.exprToSyntax equivZ
+        comp_lift (ex := $(terms[0]!)) (ey := $(terms[1]!)) (ez := $(terms[2]!))]))
+    | .ParallelComp ex ey ez et =>
+      let terms ← exprsToSyntax #[ex, ey, ez, et]
       evalTactic (← `(tactic| nth_rw 1 [
         parallelComp_lift
-        (ex := $equivXStx)
-        (ey := $equivYStx)
-        (et := $equivTStx)
-        (ez := $equivZStx)
+        (ex := $(terms[0]!))
+        (ey := $(terms[1]!))
+        (ez := $(terms[2]!))
+        (et := $(terms[3]!))
       ]))
-    | .Prod equivX equivY equivZ =>
-      let equivXStx ← Term.exprToSyntax equivX
-      let equivYStx ← Term.exprToSyntax equivY
-      let equivZStx ← Term.exprToSyntax equivZ
+    | .Prod ex ey ez =>
+      let terms ← exprsToSyntax #[ex, ey, ez]
       evalTactic (← `(tactic| nth_rw 1 [
         prod_lift
-        (ex := $equivXStx)
-        (ey := $equivYStx)
-        (ez := $equivZStx)
+        (ex := $(terms[0]!))
+        (ey := $(terms[1]!))
+        (ez := $(terms[2]!))
       ]))
-    | .CompProd equivX equivY equivZ =>
-      let equivXStx ← Term.exprToSyntax equivX
-      let equivYStx ← Term.exprToSyntax equivY
-      let equivZStx ← Term.exprToSyntax equivZ
+    | .CompProd ex ey ez =>
+      let terms ← exprsToSyntax #[ex, ey, ez]
       evalTactic (← `(tactic| nth_rw 1 [
         compProd_lift
-        (ex := $equivXStx)
-        (ey := $equivYStx)
-        (ez := $equivZStx)
+        (ex := $(terms[0]!))
+        (ey := $(terms[1]!))
+        (ez := $(terms[2]!))
       ]))
-    | .Id equivX =>
-      let equivXStx ← Term.exprToSyntax equivX
+    | .Id ex =>
+      let exStx ← Term.exprToSyntax ex
       evalTactic (← `(tactic| nth_rw 1 [
         id_lift
-        (ex := $equivXStx)
+        (ex := $exStx)
       ]))
-    | .Discard equivX =>
-      let equivXStx ← Term.exprToSyntax equivX
+    | .Discard ex =>
+      let exStx ← Term.exprToSyntax ex
       evalTactic (← `(tactic| nth_rw 1 [
         discard_lift
-        (ex := $equivXStx)
+        (ex := $exStx)
       ]))
-    | .Copy equivX =>
-      let equivXStx ← Term.exprToSyntax equivX
+    | .Copy ex =>
+      let exStx ← Term.exprToSyntax ex
       evalTactic (← `(tactic| nth_rw 1 [
         copy_lift
-        (ex := $equivXStx)
+        (ex := $exStx)
       ]))
-    | .Swap equivX equivY =>
-      let equivXStx ← Term.exprToSyntax equivX
-      let equivYStx ← Term.exprToSyntax equivY
+    | .Swap ex ey =>
+      let terms ← exprsToSyntax #[ex, ey]
       evalTactic (← `(tactic| nth_rw 1 [
         swap_lift
-        (ex := $equivXStx)
-        (ey := $equivYStx)
+        (ex := $(terms[0]!))
+        (ey := $(terms[1]!))
       ]))
   evalTactic (← `(tactic| rw [lift_congr.{_, _, $maxLvlStx}]))
   if !(← getGoals).isEmpty then
