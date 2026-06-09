@@ -39,15 +39,15 @@ variable {X : Type x} [MeasurableSpace X] {Y : Type y} [MeasurableSpace Y]
 noncomputable def lift (κ : Kernel X Y) : Kernel X' Y' := (κ.map ey.symm).comap ex ex.measurable
 
 lemma lift_apply (κ : Kernel X Y) (a : X') :
-    lift (ex := ex) (ey := ey) κ a = (κ.map ey.symm) (ex a) := rfl
+    κ.lift (ex := ex) (ey := ey) a = (κ.map ey.symm) (ex a) := rfl
 
 lemma lift_apply' (κ : Kernel X Y) (a : X') {s : Set Y'} (hs : MeasurableSet s) :
-    lift (ex := ex) (ey := ey) κ a s = κ (ex a) (ey '' s) := by
+    κ.lift (ex := ex) (ey := ey) a s = κ (ex a) (ey '' s) := by
   simp only [lift, coe_comap, Function.comp_apply]
   rw [map_apply' _ ey.symm.measurable _ hs, preimage_symm]
 
 lemma isSFinite_lift (κ : Kernel X Y) :
-    IsSFiniteKernel κ ↔ IsSFiniteKernel (lift (ex := ex) (ey := ey) κ) := by
+    IsSFiniteKernel κ ↔ IsSFiniteKernel (κ.lift (ex := ex) (ey := ey)) := by
   constructor
   · intro h
     simp only [lift]
@@ -80,7 +80,7 @@ instance (κ : Kernel X Y) [IsMarkovKernel κ] : IsMarkovKernel (lift (ex := ex)
   exact IsMarkovKernel.comap _ ex.measurable
 
 lemma lift_congr {κ η : Kernel X Y} :
-    lift (ex := ex) (ey := ey) κ = lift (ex := ex) (ey := ey) η ↔ κ = η := by
+    κ.lift (ex := ex) (ey := ey) = η.lift (ex := ex) (ey := ey) ↔ κ = η := by
   constructor
   · intro h
     ext a s hs
@@ -97,8 +97,8 @@ variable {Z : Type z} [MeasurableSpace Z] {T : Type t} [MeasurableSpace T]
   {ez : Z' ≃ᵐ Z} {et : T' ≃ᵐ T}
 
 lemma comp_lift (η : Kernel X Y) (κ : Kernel Z X) :
-    (lift (ex := ex) (ey := ey) η).comp (lift (ex := ez) (ey := ex) κ) =
-      lift (ex := ez) (ey := ey) (η.comp κ) := by
+    η.lift (ex := ex) (ey := ey) ∘ₖ κ.lift (ex := ez) (ey := ex) =
+      (η ∘ₖ κ).lift (ex := ez) (ey := ey) := by
   ext _ _ hs
   rw [lift_apply', comp_apply', comp_apply', lift_apply, lintegral_map]
   · congr with y
@@ -108,7 +108,7 @@ lemma comp_lift (η : Kernel X Y) (κ : Kernel Z X) :
   · exact Kernel.measurable_coe _ hs
 
 lemma parallelComp_lift (κ : Kernel X Y) (η : Kernel Z T) :
-    (lift (ex := ex) (ey := ey) κ) ∥ₖ (lift (ex := ez) (ey := et) η) =
+    κ.lift (ex := ex) (ey := ey) ∥ₖ η.lift (ex := ez) (ey := et) =
       lift (ex := ex.prod ez) (ey := ey.prod et) (κ ∥ₖ η) := by
   by_cases hκ : IsSFiniteKernel <| lift (ex := ex) (ey := ey) κ
   swap
@@ -127,7 +127,7 @@ lemma parallelComp_lift (κ : Kernel X Y) (η : Kernel Z T) :
   · rfl
   all_goals fun_prop
 
-lemma id_lift : Kernel.id (α := X') = lift (ex := ex) (ey := ex) (Kernel.id (α := X)) := by
+lemma id_lift : Kernel.id (α := X') = Kernel.id.lift (ex := ex) (ey := ex) := by
   ext _ _ hs
   rw [lift_apply' _ _ hs]
   simp only [id_apply]
@@ -136,14 +136,14 @@ lemma id_lift : Kernel.id (α := X') = lift (ex := ex) (ey := ex) (Kernel.id (α
     simp_all only [Set.mem_image, EmbeddingLike.apply_eq_iff_eq, exists_eq_right]
   all_goals measurability
 
-lemma discard_lift : discard.{_, w} X' = lift (ex := ex) (ey := punit) (discard X) := by
+lemma discard_lift : discard.{_, w} X' = (discard X).lift (ex := ex) (ey := punit) := by
   ext _ _ hs
   rw [lift_apply' _ _ hs]
   simp only [discard_apply, MeasurableSpace.measurableSet_top, Measure.dirac_apply']
   refine Set.indicator_eq_indicator ?_ rfl
   grind
 
-lemma copy_lift : copy X' = lift (ex := ex) (ey := ex.prod ex) (copy X) := by
+lemma copy_lift : copy X' = (copy X).lift (ex := ex) (ey := ex.prod ex) := by
   ext _ _ hs
   rw [lift_apply' _ _ hs]
   simp only [copy_apply]
@@ -152,7 +152,7 @@ lemma copy_lift : copy X' = lift (ex := ex) (ey := ex.prod ex) (copy X) := by
     simp [MeasurableEquiv.prod]
   · measurability
 
-lemma swap_lift : swap X' Y' = lift (ex := ex.prod ey) (ey := ey.prod ex) (swap X Y) := by
+lemma swap_lift : swap X' Y' = (swap X Y).lift (ex := ex.prod ey) (ey := ey.prod ex) := by
   ext a s hs
   rw [lift_apply' _ _ hs]
   simp only [swap_apply]
@@ -165,7 +165,7 @@ lemma swap_lift : swap X' Y' = lift (ex := ex.prod ey) (ey := ey.prod ex) (swap 
   · measurability
 
 lemma prod_lift (κ : Kernel X Y) (η : Kernel X Z) :
-    (lift (ex := ex) (ey := ey) κ) ×ₖ (lift (ex := ex) (ey := ez) η) =
+    κ.lift (ex := ex) (ey := ey) ×ₖ η.lift (ex := ex) (ey := ez) =
       lift (ex := ex) (ey := ey.prod ez) (κ ×ₖ η) := by
   by_cases hκ : IsSFiniteKernel <| lift (ex := ex) (ey := ey) κ
   swap
@@ -181,7 +181,7 @@ lemma prod_lift (κ : Kernel X Y) (η : Kernel X Z) :
   rw [← comp_lift (ex := ex.prod ex), ← parallelComp_lift, ← copy_lift]
 
 lemma compProd_lift (κ : Kernel X Y) (η : Kernel (X × Y) Z) :
-    (lift (ex := ex) (ey := ey) κ) ⊗ₖ (lift (ex := ex.prod ey) (ey := ez) η) =
+    κ.lift (ex := ex) (ey := ey) ⊗ₖ η.lift (ex := ex.prod ey) (ey := ez) =
       lift (ex := ex) (ey := ey.prod ez) (κ ⊗ₖ η) := by
   by_cases hκ : IsSFiniteKernel <| lift (ex := ex) (ey := ey) κ
   swap
@@ -207,7 +207,7 @@ lemma compProd_lift (κ : Kernel X Y) (η : Kernel (X × Y) Z) :
 
 
 instance {κ : Kernel X Y} [IsDeterministic κ] :
-    IsDeterministic (lift (ex := ex) (ey := ey) κ) where
+    IsDeterministic (κ.lift (ex := ex) (ey := ey)) where
   parallelComp_self_comp_copy' := by
     rw [parallelComp_lift, copy_lift (ex := ex), copy_lift (ex := ey), comp_lift, comp_lift,
       lift_congr]
