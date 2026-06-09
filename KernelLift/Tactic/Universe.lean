@@ -27,6 +27,12 @@ public meta section
 
 open Lean Meta ProbabilityTheory
 
+partial def deconstructLevel (l : Level) :=
+  match l with
+  | Level.zero | Level.succ _ | Level.param _ | Level.mvar _ => [l]
+  | Level.max l1 l2 | Level.imax l1 l2 =>
+    deconstructLevel l1 ++ deconstructLevel l2
+
 /-- Recursively traverses a kernel expression and collects all universe levels. -/
 partial def collectKernelLevels.aux (e : Expr) : MetaM (List Level) := do
   match e.getAppFn with
@@ -48,7 +54,7 @@ partial def collectKernelLevels.aux (e : Expr) : MetaM (List Level) := do
   | _ =>
     let t ← inferType e
     match t.getAppFn with
-    | Expr.const ``Kernel univs => return univs
+    | Expr.const ``Kernel [l1, l2] => return deconstructLevel l1 ++ deconstructLevel l2
     | _ => throwError "Expected a kernel type, got: {e} : {t}"
 
 /-- Recursively traverse an expression and collect universe levels found.
