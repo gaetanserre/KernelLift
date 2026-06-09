@@ -6,7 +6,6 @@ Authors: Gaëtan Serré
 module
 
 public import KernelLift.ForMathlib.MeasurableEquiv
-public import Lean
 public import Mathlib.Probability.Kernel.Composition.Prod
 public import Mathlib.Probability.Kernel.Composition.CompProd
 

@@ -7,7 +7,7 @@ module
 
 public import KernelLift.ForMathlib.Kernel
 public import KernelLift.ForMathlib.MeasurableEquiv
-public import Mathlib
+public import Mathlib.Probability.Kernel.Composition.CompProd
 
 /-!
 # Kernel Lift
