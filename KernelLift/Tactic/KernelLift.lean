@@ -76,6 +76,19 @@ partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP) :
     let ez ← constructMeasurableEquiv Z zLvl maxLvl
     let OPProd := .Prod ex ey ez
     return (← mkAppM ``Kernel.prod #[κ', η'], OPProd :: lη)
+  | Expr.const ``Kernel.compProd _ =>
+    let args := e.getAppArgs
+    let κ := args[args.size - 2]!
+    let η := args[args.size - 1]!
+    let (κ', lκ) ← liftKernel maxLvl κ op_data
+    let (η', lη) ← liftKernel maxLvl η lκ
+    let (X, Y, xLvl, yLvl) ← getTypesFromKernel κ
+    let (_, Z, _, zLvl) ← getTypesFromKernel η
+    let ex ← constructMeasurableEquiv X xLvl maxLvl
+    let ey ← constructMeasurableEquiv Y yLvl maxLvl
+    let ez ← constructMeasurableEquiv Z zLvl maxLvl
+    let OPCompProd := .CompProd ex ey ez
+    return (← mkAppM ``Kernel.compProd #[κ', η'], OPCompProd :: lη)
   | Expr.const ``Kernel.id _ =>
     let (X, _, xLvl, _) ← getTypesFromKernel e
     let ex ← constructMeasurableEquiv X xLvl maxLvl
@@ -156,6 +169,16 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
         (ey := $equivYStx)
         (ez := $equivZStx)
       ]))
+    | .CompProd equivX equivY equivZ =>
+      let equivXStx ← Term.exprToSyntax equivX
+      let equivYStx ← Term.exprToSyntax equivY
+      let equivZStx ← Term.exprToSyntax equivZ
+      evalTactic (← `(tactic| nth_rw 1 [
+        compProd_lift
+        (ex := $equivXStx)
+        (ey := $equivYStx)
+        (ez := $equivZStx)
+      ]))
     | .Id equivX =>
       let equivXStx ← Term.exprToSyntax equivX
       evalTactic (← `(tactic| nth_rw 1 [
@@ -217,21 +240,21 @@ def ApplyKernelLift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId :=
           let decl ← fid.getDecl
           pure decl.type
         | none => goal.getType
-    let (homExpr, op_data, maxLvl) ← LiftEquality expr
-    let eqProofType ← mkEq expr homExpr
+    let (liftExpr, op_data, maxLvl) ← LiftEquality expr
+    let eqProofType ← mkEq expr liftExpr
     let eqProof ← mkKernelLiftEqProof eqProofType maxLvl op_data
     match fvarId with
     | some fid => do
       let mvarId ← getMainGoal
       let hProof ← mkEqMP eqProof (mkFVar fid)
       let userName := (← fid.getDecl).userName
-      let mvarId ← mvarId.assert userName homExpr hProof
+      let mvarId ← mvarId.assert userName liftExpr hProof
       let mvarId ← mvarId.tryClear fid
       let (_, mvarId) ← mvarId.intro1P
       pure mvarId
     | none => do
       let mvarId ← getMainGoal
-      mvarId.replaceTargetEq homExpr eqProof
+      mvarId.replaceTargetEq liftExpr eqProof
 
 @[inherit_doc ApplyKernelLift]
 syntax (name := kernelLift) "kernel_lift" (ppSpace location)? : tactic

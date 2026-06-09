@@ -111,6 +111,7 @@ inductive KernelOP
   | Comp (equiv₁ equiv₂ equiv₃ : Expr)
   | ParallelComp (equiv₁ equiv₂ equiv₃ equiv₄ : Expr)
   | Prod (equiv₁ equiv₂ equiv₃ : Expr)
+  | CompProd (equiv₁ equiv₂ equiv₃ : Expr)
   | Id (equiv : Expr)
   | Discard (equiv : Expr)
   | Copy (equiv : Expr)
@@ -122,6 +123,7 @@ instance : ToMessageData KernelOP where
     | .ParallelComp ex ey et ez =>
       m!"Parallel composition with {ex}, {ey}, {et}, {ez}"
     | .Prod ex ey ez => m!"Product with {ex}, {ey}, {ez}"
+    | .CompProd ex1 ex2 ex3 => m!"CompProd with {ex1}, {ex2}, {ex3}"
     | .Id ex => m!"Identity with {ex}"
     | .Discard ex => m!"Discard with {ex}"
     | .Copy ex => m!"Copy with {ex}"

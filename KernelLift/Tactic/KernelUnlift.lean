@@ -72,6 +72,19 @@ partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
     let ez ← constructMeasurableEquiv Z zLvl eLvl
     let OPProd := .Prod ex ey ez
     return (← mkAppM ``Kernel.prod #[κ, η], OPProd :: lη)
+  | Expr.const ``Kernel.compProd _ =>
+    let args := e.getAppArgs
+    let κ' := args[args.size - 2]!
+    let η' := args[args.size - 1]!
+    let (κ, lκ) ← unliftKernel eLvl κ' op_data
+    let (η, lη) ← unliftKernel eLvl η' lκ
+    let (X, Y, xLvl, yLvl) ← getTypesFromKernel κ
+    let (_, Z, _, zLvl) ← getTypesFromKernel η
+    let ex ← constructMeasurableEquiv X xLvl eLvl
+    let ey ← constructMeasurableEquiv Y yLvl eLvl
+    let ez ← constructMeasurableEquiv Z zLvl eLvl
+    let OPCompProd := .CompProd ex ey ez
+    return (← mkAppM ``compProd #[κ, η], OPCompProd :: lη)
   | Expr.const ``Kernel.id _ =>
     let (X', _, _, _) ← getTypesFromKernel e
     let (X, xLvl) ← getOriginalType X'
@@ -144,6 +157,16 @@ def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level) (op_data : List Ke
       let equivZStx ← Term.exprToSyntax equivZ
       evalTactic (← `(tactic| nth_rw 1 [
         prod_lift
+        (ex := $equivXStx)
+        (ey := $equivYStx)
+        (ez := $equivZStx)
+      ]))
+    | .CompProd equivX equivY equivZ =>
+      let equivXStx ← Term.exprToSyntax equivX
+      let equivYStx ← Term.exprToSyntax equivY
+      let equivZStx ← Term.exprToSyntax equivZ
+      evalTactic (← `(tactic| nth_rw 1 [
+        compProd_lift
         (ex := $equivXStx)
         (ey := $equivYStx)
         (ez := $equivZStx)

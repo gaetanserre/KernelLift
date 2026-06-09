@@ -1,1 +1,1 @@
-- [ ] `compProd`
+- [x] `compProd`
