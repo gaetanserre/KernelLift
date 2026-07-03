@@ -46,6 +46,7 @@ partial def levelToSyntax (lvl : Level) : MacroM (TSyntax `level) := do
     let l2Stx : TSyntax `level ← levelToSyntax l2
     `(level| imax $l1Stx $l2Stx)
 
+/-- Convert an array of expressions to an array of syntax terms. -/
 def exprsToSyntax (exprs : Array Expr) : TermElabM (Array Term) := do
   exprs.mapM Term.exprToSyntax
 

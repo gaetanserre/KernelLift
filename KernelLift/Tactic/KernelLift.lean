@@ -202,9 +202,12 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
   setGoals savedGoals
   instantiateMVars mvar
 
+/-- Error type indicating that the kernel equality is already homogeneous. -/
 inductive LiftError
   | AlreadyHomogeneous : LiftError
 
+/-- Lift a kernel equality to a common universe level, returning the lifted expression,
+the list of operations performed, and the maximum level. -/
 def LiftEquality (eq : Expr) : ExceptT LiftError MetaM (Expr × List KernelOP × Level) := do
   let eq ← whnfR <| ← instantiateMVars eq
   let univs ← collectEqKernelLevels eq

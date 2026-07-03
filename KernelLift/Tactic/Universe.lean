@@ -27,6 +27,7 @@ public meta section
 
 open Lean Meta ProbabilityTheory
 
+/-- Recursively deconstructs a universe level into its constituent levels. -/
 partial def deconstructLevel (l : Level) :=
   match l with
   | Level.zero | Level.succ _ | Level.param _ | Level.mvar _ => [l]
