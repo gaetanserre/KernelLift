@@ -79,7 +79,7 @@ partial def constructMeasurableEquiv (e : Expr) (eLevel maxLvl : Level) : MetaM 
     let yLevel := univs[1]!
     let ex ← constructMeasurableEquiv X xLevel maxLvl
     let ey ← constructMeasurableEquiv Y yLevel maxLvl
-    let res ← mkAppOptM' (Expr.const ``MeasurableEquiv.prod [maxLvl, xLevel, yLevel])
+    let res ← mkAppOptM' (Expr.const ``MeasurableEquiv.prod [xLevel, yLevel, maxLvl, maxLvl])
       #[none, none, none, none, none, none, none, none, ex, ey]
     return res
   | _ => mkAppOptM' (Expr.const ``MeasurableEquiv.ulift [eLevel, maxLvl]) #[e, none]
