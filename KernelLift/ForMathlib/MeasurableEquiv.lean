@@ -25,8 +25,8 @@ namespace MeasurableEquiv
 
 universe w x y
 
-variable {X : Type x} {Y : Type y} [MeasurableSpace X] [MeasurableSpace Y]
-  {X' Y' : Type w} [MeasurableSpace X'] [MeasurableSpace Y'] (ex : X' ≃ᵐ X) (ey : Y' ≃ᵐ Y)
+variable {X Y X' Y' : Type*} [MeasurableSpace X] [MeasurableSpace Y] [MeasurableSpace X']
+  [MeasurableSpace Y'] (ex : X' ≃ᵐ X) (ey : Y' ≃ᵐ Y)
 
 /-- The product of two measurable equivalences is a measurable equivalence. -/
 def prod : X' × Y' ≃ᵐ X × Y where
