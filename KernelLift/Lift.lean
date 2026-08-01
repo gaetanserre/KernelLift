@@ -209,7 +209,6 @@ instance {κ : Kernel X Y} [IsDeterministic κ] :
     IsDeterministic (κ.lift (ex := ex) (ey := ey)) where
   parallelComp_self_comp_copy' := by
     rw [parallelComp_lift, copy_lift (ex := ex), copy_lift (ex := ey), comp_lift, comp_lift,
-      lift_congr]
-    exact κ.parallelComp_self_comp_copy
+      lift_congr, κ.parallelComp_self_comp_copy]
 
 end ProbabilityTheory.Kernel
