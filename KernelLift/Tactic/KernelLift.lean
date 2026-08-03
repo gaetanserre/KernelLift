@@ -238,21 +238,21 @@ def ApplyKernelLift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId :=
     match result with
     | Except.error .AlreadyHomogeneous =>
       throwError "All kernels are already in the same universe, no need to apply kernel_lift"
-    | Except.ok (liftExpr, op_data, maxLvl) =>
-      let eqProofType ← mkEq expr liftExpr
-      let eqProof ← mkKernelLiftEqProof eqProofType maxLvl op_data
+    | Except.ok (lift_expr, op_data, maxLvl) =>
+      let eq_proof_type ← mkEq expr lift_expr
+      let eq_proof ← mkKernelLiftEqProof eq_proof_type maxLvl op_data
       match fvarId with
       | some fid => do
         let mvarId ← getMainGoal
-        let hProof ← mkEqMP eqProof (mkFVar fid)
+        let h_proof ← mkEqMP eq_proof (mkFVar fid)
         let userName := (← fid.getDecl).userName
-        let mvarId ← mvarId.assert userName liftExpr hProof
+        let mvarId ← mvarId.assert userName lift_expr h_proof
         let mvarId ← mvarId.tryClear fid
         let (_, mvarId) ← mvarId.intro1P
         pure mvarId
       | none => do
         let mvarId ← getMainGoal
-        mvarId.replaceTargetEq liftExpr eqProof
+        mvarId.replaceTargetEq lift_expr eq_proof
 
 @[inherit_doc ApplyKernelLift]
 syntax (name := kernelLift) "kernel_lift" (ppSpace location)? : tactic

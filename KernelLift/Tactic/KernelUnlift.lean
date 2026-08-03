@@ -88,33 +88,45 @@ partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
   | Expr.const ``Kernel.id _ =>
     let (X', _, _, _) ← getTypesFromKernel e
     let (X, xLvl) ← getOriginalType X'
-    let ex ← constructMeasurableEquiv X xLvl eLvl
-    let mX ← synthInstance (mkApp (Expr.const ``MeasurableSpace [xLvl]) X)
-    let OPId := .Id ex
-    return (← mkAppOptM ``Kernel.id #[X, mX], OPId :: op_data)
+    if X == X' then
+      return (e, op_data)
+    else
+      let ex ← constructMeasurableEquiv X xLvl eLvl
+      let mX ← synthInstance (mkApp (Expr.const ``MeasurableSpace [xLvl]) X)
+      let OPId := .Id ex
+      return (← mkAppOptM ``Kernel.id #[X, mX], OPId :: op_data)
   | Expr.const ``Kernel.discard _ =>
     let (X', _, _, _) ← getTypesFromKernel e
     let (X, xLvl) ← getOriginalType X'
-    let ex ← constructMeasurableEquiv X xLvl eLvl
-    let OPDiscard := .Discard ex
-    let discard_const := Expr.const ``Kernel.discard [xLvl, 0]
-    return (← mkAppOptM' discard_const #[X, none], OPDiscard :: op_data)
+    if X == X' then
+      return (e, op_data)
+    else
+      let ex ← constructMeasurableEquiv X xLvl eLvl
+      let OPDiscard := .Discard ex
+      let discard_const := Expr.const ``Kernel.discard [xLvl, 0]
+      return (← mkAppOptM' discard_const #[X, none], OPDiscard :: op_data)
   | Expr.const ``Kernel.copy _ =>
     let (X', _, _, _) ← getTypesFromKernel e
     let (X, xLvl) ← getOriginalType X'
-    let ex ← constructMeasurableEquiv X xLvl eLvl
-    let OPCopy := .Copy ex
-    return (← mkAppOptM ``Kernel.copy #[X, none], OPCopy :: op_data)
+    if X == X' then
+      return (e, op_data)
+    else
+      let ex ← constructMeasurableEquiv X xLvl eLvl
+      let OPCopy := .Copy ex
+      return (← mkAppOptM ``Kernel.copy #[X, none], OPCopy :: op_data)
   | Expr.const ``Kernel.swap _ =>
     let args := e.getAppArgs
     let X' := args[0]!
     let Y' := args[1]!
     let (X, xLvl) ← getOriginalType X'
     let (Y, yLvl) ← getOriginalType Y'
-    let ex ← constructMeasurableEquiv X xLvl eLvl
-    let ey ← constructMeasurableEquiv Y yLvl eLvl
-    let OPSwap := .Swap ex ey
-    return (← mkAppOptM ``Kernel.swap #[X, Y, none, none], OPSwap :: op_data)
+    if X == X' && Y == Y' then
+      return (e, op_data)
+    else
+      let ex ← constructMeasurableEquiv X xLvl eLvl
+      let ey ← constructMeasurableEquiv Y yLvl eLvl
+      let OPSwap := .Swap ex ey
+      return (← mkAppOptM ``Kernel.swap #[X, Y, none, none], OPSwap :: op_data)
   | Expr.const ``Kernel.lift _ =>
     let args := e.getAppArgs
     let κ := args[args.size - 1]!
@@ -219,21 +231,24 @@ def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId 
           pure decl.type
         | none => goal.getType
     let expr ← whnfR <| ← instantiateMVars expr
-    let (homExpr, op_data, eLvl) ← UnliftEquality expr
-    let eqProofType ← mkEq expr homExpr
-    let eqProof ← mkKernelUnliftEqProof eqProofType eLvl op_data
-    match fvarId with
-    | some fid => do
-      let mvarId ← getMainGoal
-      let hProof ← mkEqMP eqProof (mkFVar fid)
-      let userName := (← fid.getDecl).userName
-      let mvarId ← mvarId.assert userName homExpr hProof
-      let mvarId ← mvarId.tryClear fid
-      let (_, mvarId) ← mvarId.intro1P
-      pure mvarId
-    | none => do
-      let mvarId ← getMainGoal
-      mvarId.replaceTargetEq homExpr eqProof
+    let (unlift_expr, op_data, eLvl) ← UnliftEquality expr
+    if unlift_expr == expr then
+      getMainGoal
+    else
+      let eq_proof_type ← mkEq expr unlift_expr
+      let eq_proof ← mkKernelUnliftEqProof eq_proof_type eLvl op_data
+      match fvarId with
+      | some fid => do
+        let mvarId ← getMainGoal
+        let h_proof ← mkEqMP eq_proof (mkFVar fid)
+        let userName := (← fid.getDecl).userName
+        let mvarId ← mvarId.assert userName unlift_expr h_proof
+        let mvarId ← mvarId.tryClear fid
+        let (_, mvarId) ← mvarId.intro1P
+        pure mvarId
+      | none => do
+        let mvarId ← getMainGoal
+        mvarId.replaceTargetEq unlift_expr eq_proof
 
 @[inherit_doc ApplyKernelUnlift]
 syntax (name := kernelUnlift) "kernel_unlift" (ppSpace location)? : tactic
