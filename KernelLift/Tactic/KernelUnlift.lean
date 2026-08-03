@@ -233,7 +233,7 @@ def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId 
     let expr ← whnfR <| ← instantiateMVars expr
     let (unlift_expr, op_data, eLvl) ← UnliftEquality expr
     if unlift_expr == expr then
-      getMainGoal
+      throwError "The expression is not a lifted kernel equality, or it cannot be unlifted."
     else
       let eq_proof_type ← mkEq expr unlift_expr
       let eq_proof ← mkKernelUnliftEqProof eq_proof_type eLvl op_data

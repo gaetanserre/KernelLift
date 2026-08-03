@@ -27,6 +27,18 @@ public meta section
 
 open Lean Meta ProbabilityTheory
 
+/-- Recursively collects types from a product type -/
+partial def deconstructProductType (t : Expr) : MetaM (List Expr) := do
+  let t ← whnf t
+  match t.getAppFn with
+  | Expr.const ``Prod _ =>
+    let args := t.getAppArgs
+    let X := args[args.size - 2]!
+    let Y := args[args.size - 1]!
+    let rest ← deconstructProductType X
+    return rest ++ [Y]
+  | _ => return [t]
+
 /-- Recursively deconstructs a universe level into its constituent levels. -/
 partial def deconstructLevel (l : Level) :=
   match l with
@@ -55,7 +67,15 @@ partial def collectKernelLevels.aux (e : Expr) : MetaM (List Level) := do
   | _ =>
     let t ← inferType e
     match t.getAppFn with
-    | Expr.const ``Kernel [l1, l2] => return deconstructLevel l1 ++ deconstructLevel l2
+    | Expr.const ``Kernel _ =>
+      let args := t.getAppArgs
+      let Ys := deconstructProductType args[args.size - 3]!
+      let Xs := deconstructProductType args[args.size - 4]!
+      let xLvls ←
+        (← (← Xs).mapM getDecLevel).foldlM (fun acc l => return acc ++ deconstructLevel l) []
+      let yLvls ←
+        (← (← Ys).mapM getDecLevel).foldlM (fun acc l => return acc ++ deconstructLevel l) []
+      return xLvls ++ yLvls
     | _ => throwError "Expected a kernel type, got: {e} : {t}"
 
 /-- Recursively traverse an expression and collect universe levels found.
