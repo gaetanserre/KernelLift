@@ -207,16 +207,22 @@ def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level) (op_data : List Ke
   instantiateMVars mvar
 
 /-- Extract the original kernel equality from a lifted kernel equality, returning the unlifted
-expression and a proof of equivalence. -/
-def UnliftEquality (eq : Expr) : TacticM (Expr × Expr) := do
-  let eq ← whnfR <| ← instantiateMVars eq
+expression and metadata. -/
+def UnliftEquality.expr (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
   let eLvl ← getLevelFromEq eq
   let (unlift_expr, op_data) ← transformEquality eq KernelOP <| unliftKernel eLvl
   if unlift_expr == eq then
     throwError "The expression is not a lifted kernel equality, or it cannot be unlifted."
   else
-    let eq_proof_type ← mkEq eq unlift_expr
-    return (unlift_expr, ← mkKernelUnliftEqProof eq_proof_type eLvl op_data)
+    return (unlift_expr, op_data, eLvl)
+
+/-- Extract the original kernel equality from a lifted kernel equality, returning the unlifted
+expression and a proof of equivalence. -/
+def UnliftEquality (eq : Expr) : TacticM (Expr × Expr) := do
+  let eq ← whnfR <| ← instantiateMVars eq
+  let (unlift_expr, op_data, eLvl) ← UnliftEquality.expr eq
+  let eq_proof_type ← mkEq eq unlift_expr
+  return (unlift_expr, ← mkKernelUnliftEqProof eq_proof_type eLvl op_data)
 
 /-- The `kernel_unlift` tactic is the inverse of `kernel_lift`. It transforms equalities of lifted
 kernels back into equalities of the original kernels.

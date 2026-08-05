@@ -202,13 +202,19 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
   setGoals savedGoals
   instantiateMVars mvar
 
+/-- Extract the lifted kernel equality from an original kernel equality, returning the lifted
+expression and metadata. -/
+def LiftEquality.expr (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
+  let univs ← collectExprUniverses eq
+  let maxLvl ← computeMaxLevel univs
+  let (lift_expr, op_data) ← transformEquality eq KernelOP <| liftKernel maxLvl
+  return (lift_expr, op_data, maxLvl)
+
 /-- Lift a kernel equality to a common universe level, returning the lifted expression and a
 proof of equivalence. -/
 def LiftEquality (eq : Expr) : TacticM (Expr × Expr) := do
   let eq ← whnfR <| ← instantiateMVars eq
-  let univs ← collectExprUniverses eq
-  let maxLvl ← computeMaxLevel univs
-  let (lift_expr, op_data) ← transformEquality eq KernelOP <| liftKernel maxLvl
+  let (lift_expr, op_data, maxLvl) ← LiftEquality.expr eq
   let eq_proof_type ← mkEq eq lift_expr
   return (lift_expr, ← mkKernelLiftEqProof eq_proof_type maxLvl op_data)
 
