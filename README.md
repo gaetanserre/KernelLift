@@ -15,3 +15,5 @@ These tactics handle several kernel operations and primitives: composition, para
 ## Usage
 
 See [`Tests.lean`](KernelLiftTests/Tests.lean) for examples of using the available tactics.
+
+See also [Kernel-Hom](https://github.com/gaetanserre/KernelHom) for a deeper use of the kernel lifting tactic in the context of translating kernel equalities into categorical equalities.
