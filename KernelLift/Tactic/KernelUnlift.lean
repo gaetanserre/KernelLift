@@ -211,7 +211,7 @@ expression and a proof of equivalence. -/
 def UnliftEquality (eq : Expr) : TacticM (Expr × Expr) := do
   let eq ← whnfR <| ← instantiateMVars eq
   let eLvl ← getLevelFromEq eq
-  let (unlift_expr, op_data, _, _) ← transformEquality eq KernelOP <| unliftKernel eLvl
+  let (unlift_expr, op_data) ← transformEquality eq KernelOP <| unliftKernel eLvl
   if unlift_expr == eq then
     throwError "The expression is not a lifted kernel equality, or it cannot be unlifted."
   else

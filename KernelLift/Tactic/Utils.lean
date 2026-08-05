@@ -135,10 +135,10 @@ instance : ToMessageData KernelOP where
 /-- Transform both sides of an equality and return the new equality plus metadata. -/
 def transformEquality (e : Expr) (OP : Type)
     (transform : Expr → List OP → MetaM (Expr × List OP)) :
-    MetaM (Expr × List OP × Expr × Expr) := do
+    MetaM (Expr × List OP) := do
   let e ← whnf (← zetaReduce (← instantiateMVars e))
   let e := e.consumeMData
   let some (_, lhs, rhs) := e.eq? | throwError "Expected an equality, got: {e}"
   let (lhs', lh) ← transform lhs []
   let (rhs', rh) ← transform rhs lh
-  return (← mkAppM `Eq #[lhs', rhs'], rh, lhs, rhs)
+  return (← mkAppM `Eq #[lhs', rhs'], rh)

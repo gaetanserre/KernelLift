@@ -208,7 +208,7 @@ def LiftEquality (eq : Expr) : TacticM (Expr × Expr) := do
   let eq ← whnfR <| ← instantiateMVars eq
   let univs ← collectExprUniverses eq
   let maxLvl ← computeMaxLevel univs
-  let (lift_expr, op_data, _, _) ← transformEquality eq KernelOP <| liftKernel maxLvl
+  let (lift_expr, op_data) ← transformEquality eq KernelOP <| liftKernel maxLvl
   let eq_proof_type ← mkEq eq lift_expr
   return (lift_expr, ← mkKernelLiftEqProof eq_proof_type maxLvl op_data)
 
