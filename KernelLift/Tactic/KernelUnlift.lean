@@ -206,12 +206,17 @@ def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level) (op_data : List Ke
   setGoals savedGoals
   instantiateMVars mvar
 
-/-- Extract the original kernel equality from a lifted kernel equality -/
-def UnliftEquality (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
+/-- Extract the original kernel equality from a lifted kernel equality, returning the unlifted
+expression and a proof of equivalence. -/
+def UnliftEquality (eq : Expr) : TacticM (Expr × Expr) := do
   let eq ← whnfR <| ← instantiateMVars eq
   let eLvl ← getLevelFromEq eq
-  let (homExpr, op_data, _, _) ← transformEquality eq KernelOP <| unliftKernel eLvl
-  return (homExpr, op_data, eLvl)
+  let (unlift_expr, op_data, _, _) ← transformEquality eq KernelOP <| unliftKernel eLvl
+  if unlift_expr == eq then
+    throwError "The expression is not a lifted kernel equality, or it cannot be unlifted."
+  else
+    let eq_proof_type ← mkEq eq unlift_expr
+    return (unlift_expr, ← mkKernelUnliftEqProof eq_proof_type eLvl op_data)
 
 /-- The `kernel_unlift` tactic is the inverse of `kernel_lift`. It transforms equalities of lifted
 kernels back into equalities of the original kernels.
@@ -223,36 +228,8 @@ The tactic supports location specifiers like `rw` or `simp`:
 * `kernel_unlift at h ⊢` — applies to hypothesis `h` and the goal
 * `kernel_unlift at *` — applies to all hypotheses and the goal
 -/
-def ApplyKernelUnlift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
-  goal.withContext do
-    let expr ← match fvarId with
-        | some fid => do
-          let decl ← fid.getDecl
-          pure decl.type
-        | none => goal.getType
-    let expr ← whnfR <| ← instantiateMVars expr
-    let (unlift_expr, op_data, eLvl) ← UnliftEquality expr
-    if unlift_expr == expr then
-      throwError "The expression is not a lifted kernel equality, or it cannot be unlifted."
-    else
-      let eq_proof_type ← mkEq expr unlift_expr
-      let eq_proof ← mkKernelUnliftEqProof eq_proof_type eLvl op_data
-      match fvarId with
-      | some fid => do
-        let mvarId ← getMainGoal
-        let h_proof ← mkEqMP eq_proof (mkFVar fid)
-        let userName := (← fid.getDecl).userName
-        let mvarId ← mvarId.assert userName unlift_expr h_proof
-        let mvarId ← mvarId.tryClear fid
-        let (_, mvarId) ← mvarId.intro1P
-        pure mvarId
-      | none => do
-        let mvarId ← getMainGoal
-        mvarId.replaceTargetEq unlift_expr eq_proof
-
-@[inherit_doc ApplyKernelUnlift]
 syntax (name := kernelUnlift) "kernel_unlift" (ppSpace location)? : tactic
 
 elab_rules : tactic
   | `(tactic| kernel_unlift $[$loc]?) =>
-    expandOptLocation (Lean.mkOptionalNode loc) |> applyLocTactic <| ApplyKernelUnlift
+    expandOptLocation (Lean.mkOptionalNode loc) |> applyLocTactic <| UnliftEquality

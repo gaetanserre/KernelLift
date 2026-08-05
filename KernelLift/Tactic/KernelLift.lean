@@ -202,14 +202,15 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
   setGoals savedGoals
   instantiateMVars mvar
 
-/-- Lift a kernel equality to a common universe level, returning the lifted expression,
-the list of operations performed, and the maximum level. -/
-def LiftEquality (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
+/-- Lift a kernel equality to a common universe level, returning the lifted expression and a
+proof of equivalence. -/
+def LiftEquality (eq : Expr) : TacticM (Expr × Expr) := do
   let eq ← whnfR <| ← instantiateMVars eq
   let univs ← collectExprUniverses eq
   let maxLvl ← computeMaxLevel univs
-  let (homExpr, op_data, _, _) ← transformEquality eq KernelOP <| liftKernel maxLvl
-  return (homExpr, op_data, maxLvl)
+  let (lift_expr, op_data, _, _) ← transformEquality eq KernelOP <| liftKernel maxLvl
+  let eq_proof_type ← mkEq eq lift_expr
+  return (lift_expr, ← mkKernelLiftEqProof eq_proof_type maxLvl op_data)
 
 /-- The `kernel_lift` tactic transforms a kernel equality to an equivalent equality in
 which all kernels are lifted to a common universe level.
@@ -221,32 +222,8 @@ The tactic supports location specifiers like `rw` or `simp`:
 * `kernel_lift at h ⊢` — applies to hypothesis `h` and the goal
 * `kernel_lift at *` — applies to all hypotheses and the goal
 -/
-def ApplyKernelLift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId := do
-  goal.withContext do
-    let expr ← match fvarId with
-        | some fid => do
-          let decl ← fid.getDecl
-          pure decl.type
-        | none => goal.getType
-    let (lift_expr, op_data, maxLvl) ← LiftEquality expr
-    let eq_proof_type ← mkEq expr lift_expr
-    let eq_proof ← mkKernelLiftEqProof eq_proof_type maxLvl op_data
-    match fvarId with
-    | some fid => do
-      let mvarId ← getMainGoal
-      let h_proof ← mkEqMP eq_proof (mkFVar fid)
-      let userName := (← fid.getDecl).userName
-      let mvarId ← mvarId.assert userName lift_expr h_proof
-      let mvarId ← mvarId.tryClear fid
-      let (_, mvarId) ← mvarId.intro1P
-      pure mvarId
-    | none => do
-      let mvarId ← getMainGoal
-      mvarId.replaceTargetEq lift_expr eq_proof
-
-@[inherit_doc ApplyKernelLift]
 syntax (name := kernelLift) "kernel_lift" (ppSpace location)? : tactic
 
 elab_rules : tactic
   | `(tactic| kernel_lift $[$loc]?) =>
-    expandOptLocation (Lean.mkOptionalNode loc) |> applyLocTactic <| ApplyKernelLift
+    expandOptLocation (Lean.mkOptionalNode loc) |> applyLocTactic <| LiftEquality

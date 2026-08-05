@@ -22,17 +22,41 @@ public meta section
 
 open Lean Elab Tactic Meta
 
-/-- Apply a given tactic to all goals and/or hypotheses specified by a `Location`. -/
-def applyLocTactic (loc : Location) (tactic : MVarId → Option FVarId → TacticM MVarId) :
+/-- Replace an equality in a goal or hypothesis with a transformed expression, using a provided
+transformation function. -/
+def replaceEquality (goal : MVarId) (fvarId : Option FVarId)
+    (transform : Expr → TacticM (Expr × Expr)) : TacticM MVarId := do
+  goal.withContext do
+    let expr ← match fvarId with
+        | some fid => do
+          let decl ← fid.getDecl
+          pure decl.type
+        | none => goal.getType
+    let (lift_expr, eq_proof) ← transform expr
+    match fvarId with
+    | some fid => do
+      let mvarId ← getMainGoal
+      let h_proof ← mkEqMP eq_proof (mkFVar fid)
+      let userName := (← fid.getDecl).userName
+      let mvarId ← mvarId.assert userName lift_expr h_proof
+      let mvarId ← mvarId.tryClear fid
+      let (_, mvarId) ← mvarId.intro1P
+      pure mvarId
+    | none => do
+      let mvarId ← getMainGoal
+      mvarId.replaceTargetEq lift_expr eq_proof
+
+/-- Apply a given transformation to all goals and/or hypotheses specified by a `Location`. -/
+def applyLocTactic (loc : Location) (transform : Expr → TacticM (Expr × Expr)) :
     TacticM Unit := do
   match loc with
   | Location.targets hyps target =>
     for hyp in hyps do
       let hFVarId ← getFVarId hyp
-      let newGoal ← tactic (← getMainGoal) (some hFVarId)
+      let newGoal ← replaceEquality (← getMainGoal) (some hFVarId) transform
       replaceMainGoal [newGoal]
     if target then
-      let newGoal ← tactic (← getMainGoal) none
+      let newGoal ← replaceEquality (← getMainGoal) none transform
       replaceMainGoal [newGoal]
   | Location.wildcard =>
     let goal ← getMainGoal
@@ -42,10 +66,10 @@ def applyLocTactic (loc : Location) (tactic : MVarId → Option FVarId → Tacti
       for decl in lctx do
         if decl.isImplementationDetail then continue
         try
-          currentGoal ← tactic currentGoal (some decl.fvarId)
+          currentGoal ← replaceEquality currentGoal (some decl.fvarId) transform
           replaceMainGoal [currentGoal]
         catch _ => continue
       try
-        currentGoal ← tactic currentGoal none
+        currentGoal ← replaceEquality currentGoal none transform
         replaceMainGoal [currentGoal]
       catch _ => pure ()
