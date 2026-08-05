@@ -27,70 +27,25 @@ public meta section
 
 open Lean Meta ProbabilityTheory
 
-/-- Recursively collects types from a product type -/
-partial def deconstructProductType (t : Expr) : MetaM (List Expr) := do
-  let t ← whnf t
-  match t.getAppFn with
-  | Expr.const ``Prod _ =>
-    let args := t.getAppArgs
-    let X := args[args.size - 2]!
-    let Y := args[args.size - 1]!
-    let rest ← deconstructProductType X
-    return rest ++ [Y]
-  | _ => return [t]
-
-/-- Recursively deconstructs a universe level into its constituent levels. -/
-partial def deconstructLevel (l : Level) :=
-  match l with
-  | Level.zero | Level.succ _ | Level.param _ | Level.mvar _ => [l]
-  | Level.max l1 l2 | Level.imax l1 l2 =>
-    deconstructLevel l1 ++ deconstructLevel l2
-
-/-- Recursively traverses a kernel expression and collects all universe levels. -/
-partial def collectKernelLevels.aux (e : Expr) : MetaM (List Level) := do
-  match e.getAppFn with
-  | Expr.const ``Kernel.comp _ =>
-    let args := e.getAppArgs
-    let η := args[args.size - 2]!
-    let κ := args[args.size - 1]!
-    return (← collectKernelLevels.aux η) ++ (← collectKernelLevels.aux κ)
-  | Expr.const ``Kernel.parallelComp _ =>
-    let args := e.getAppArgs
-    let κ := args[args.size - 2]!
-    let η := args[args.size - 1]!
-    return (← collectKernelLevels.aux κ) ++ (← collectKernelLevels.aux η)
-  | Expr.const ``Kernel.prod _ =>
-    let args := e.getAppArgs
-    let κ := args[args.size - 2]!
-    let η := args[args.size - 1]!
-    return (← collectKernelLevels.aux κ) ++ (← collectKernelLevels.aux η)
-  | _ =>
-    let t ← inferType e
-    match t.getAppFn with
-    | Expr.const ``Kernel _ =>
-      let args := t.getAppArgs
-      let Ys := deconstructProductType args[args.size - 3]!
-      let Xs := deconstructProductType args[args.size - 4]!
-      let xLvls ←
-        (← (← Xs).mapM getDecLevel).foldlM (fun acc l => return acc ++ deconstructLevel l) []
-      let yLvls ←
-        (← (← Ys).mapM getDecLevel).foldlM (fun acc l => return acc ++ deconstructLevel l) []
-      return xLvls ++ yLvls
-    | _ => throwError "Expected a kernel type, got: {e} : {t}"
+/-- Recursively traverses an expression and collects all universe levels. -/
+def collectExprUniverses.aux (e : Expr) : List Level :=
+  match e with
+  | Expr.const _ univs => univs
+  | Expr.sort u => [u]
+  | Expr.app f a => aux f ++ aux a
+  | Expr.lam _ t b _ => aux t ++ aux b
+  | Expr.forallE _ t b _ => aux t ++ aux b
+  | Expr.letE _ t v b _ => aux t ++ aux v ++ aux b
+  | Expr.mdata _ b => aux b
+  | Expr.proj _ _ b => aux b
+  | Expr.bvar _ | Expr.fvar _ | Expr.mvar _ | Expr.lit _ => []
 
 /-- Recursively traverse an expression and collect universe levels found.
 Returns a list of all unique universe levels encountered. -/
-def collectKernelLevels (e : Expr) : MetaM (List Level) := do
-  return (← collectKernelLevels.aux e).eraseDups
-
-/-- Extract all universe levels appearing in a kernel equality expression. -/
-def collectEqKernelLevels (eq : Expr) : MetaM (List Level) := do
-  let eq ← whnf (← zetaReduce (← instantiateMVars eq))
-  let eq := eq.consumeMData
-  let some (_, lhs, rhs) := eq.eq? | throwError "Expected an equality, got: {eq}"
-  let lhsKernelLevels ← collectKernelLevels lhs
-  let rhsKernelLevels ← collectKernelLevels rhs
-  return (lhsKernelLevels ++ rhsKernelLevels).eraseDups
+def collectExprUniverses (e : Expr) : MetaM (List Level) := do
+  let e ← instantiateMVars e
+  let e ← zetaReduce e
+  return (collectExprUniverses.aux e).eraseDups
 
 /-- Compute the maximum universe level from a list of levels. -/
 def computeMaxLevel (levels : List Level) : MetaM Level :=

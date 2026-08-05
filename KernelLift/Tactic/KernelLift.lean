@@ -202,17 +202,11 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
   setGoals savedGoals
   instantiateMVars mvar
 
-/-- Error type indicating that the kernel equality is already homogeneous. -/
-inductive LiftError
-  | AlreadyHomogeneous : LiftError
-
 /-- Lift a kernel equality to a common universe level, returning the lifted expression,
 the list of operations performed, and the maximum level. -/
-def LiftEquality (eq : Expr) : ExceptT LiftError MetaM (Expr × List KernelOP × Level) := do
+def LiftEquality (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
   let eq ← whnfR <| ← instantiateMVars eq
-  let univs ← collectEqKernelLevels eq
-  if univs.length == 1 then
-    throwThe LiftError .AlreadyHomogeneous
+  let univs ← collectExprUniverses eq
   let maxLvl ← computeMaxLevel univs
   let (homExpr, op_data, _, _) ← transformEquality eq KernelOP <| liftKernel maxLvl
   return (homExpr, op_data, maxLvl)
@@ -234,25 +228,21 @@ def ApplyKernelLift (goal : MVarId) (fvarId : Option FVarId) : TacticM MVarId :=
           let decl ← fid.getDecl
           pure decl.type
         | none => goal.getType
-    let result ← (LiftEquality expr).run
-    match result with
-    | Except.error .AlreadyHomogeneous =>
-      throwError "All kernels are already in the same universe, no need to apply kernel_lift"
-    | Except.ok (lift_expr, op_data, maxLvl) =>
-      let eq_proof_type ← mkEq expr lift_expr
-      let eq_proof ← mkKernelLiftEqProof eq_proof_type maxLvl op_data
-      match fvarId with
-      | some fid => do
-        let mvarId ← getMainGoal
-        let h_proof ← mkEqMP eq_proof (mkFVar fid)
-        let userName := (← fid.getDecl).userName
-        let mvarId ← mvarId.assert userName lift_expr h_proof
-        let mvarId ← mvarId.tryClear fid
-        let (_, mvarId) ← mvarId.intro1P
-        pure mvarId
-      | none => do
-        let mvarId ← getMainGoal
-        mvarId.replaceTargetEq lift_expr eq_proof
+    let (lift_expr, op_data, maxLvl) ← LiftEquality expr
+    let eq_proof_type ← mkEq expr lift_expr
+    let eq_proof ← mkKernelLiftEqProof eq_proof_type maxLvl op_data
+    match fvarId with
+    | some fid => do
+      let mvarId ← getMainGoal
+      let h_proof ← mkEqMP eq_proof (mkFVar fid)
+      let userName := (← fid.getDecl).userName
+      let mvarId ← mvarId.assert userName lift_expr h_proof
+      let mvarId ← mvarId.tryClear fid
+      let (_, mvarId) ← mvarId.intro1P
+      pure mvarId
+    | none => do
+      let mvarId ← getMainGoal
+      mvarId.replaceTargetEq lift_expr eq_proof
 
 @[inherit_doc ApplyKernelLift]
 syntax (name := kernelLift) "kernel_lift" (ppSpace location)? : tactic
