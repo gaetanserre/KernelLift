@@ -45,7 +45,7 @@ partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP) :
     let ex ← constructMeasurableEquiv X xLvl maxLvl
     let ey ← constructMeasurableEquiv Y yLvl maxLvl
     let ez ← constructMeasurableEquiv Z tLvl maxLvl
-    let OPComp := .Comp ex ey ez
+    let OPComp := .Comp ex ey ez η κ
     let (η', lη) ← liftKernel maxLvl η op_data
     let (κ', lκ) ← liftKernel maxLvl κ lη
     return (← mkAppM ``Kernel.comp #[η', κ'], OPComp :: lκ)
@@ -125,12 +125,12 @@ partial def liftKernel (maxLvl : Level) (e : Expr) (op_data : List KernelOP) :
     let (X, Y, xLvl, yLvl) ← getTypesFromKernel e
     let ex ← constructMeasurableEquiv X xLvl maxLvl
     let ey ← constructMeasurableEquiv Y yLvl maxLvl
-    let t ← mkAppOptM ``Kernel.lift
+    let expr ← mkAppOptM ``Kernel.lift
       #[none, none, none, none, none, none, none, none, ex, ey, e]
-    return (t, op_data)
+    return (expr, op_data)
 
 /-- Construct the proof of equivalence between the original kernel equality and the lifted one. -/
-def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List KernelOP) :
+def mkKernelLiftEqProof' (eqProofType : Expr) (maxLvl : Level) (op_data : List KernelOP) :
     TacticM Expr := do
   let maxLvlStx ← liftMacroM <| levelToSyntax maxLvl
   let savedGoals ← getGoals
@@ -141,59 +141,59 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
   evalTactic (← `(tactic| apply propext))
   for op in op_data do
     match op with
-    | .Comp ex ey ez =>
+    | .Comp ex ey ez _ _ =>
       let terms ← exprsToSyntax #[ex, ey, ez]
       evalTactic (← `(tactic| nth_rw 1 [
-        comp_lift (ex := $(terms[0]!)) (ey := $(terms[1]!)) (ez := $(terms[2]!))]))
+        comp_lift $(terms[0]!) $(terms[1]!) $(terms[2]!)]))
     | .ParallelComp ex ey ez et =>
       let terms ← exprsToSyntax #[ex, ey, ez, et]
       evalTactic (← `(tactic| nth_rw 1 [
         parallelComp_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
-        (ez := $(terms[2]!))
-        (et := $(terms[3]!))
+        $(terms[0]!)
+        $(terms[1]!)
+        $(terms[2]!)
+        $(terms[3]!)
       ]))
     | .Prod ex ey ez =>
       let terms ← exprsToSyntax #[ex, ey, ez]
       evalTactic (← `(tactic| nth_rw 1 [
         prod_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
-        (ez := $(terms[2]!))
+        $(terms[0]!)
+        $(terms[1]!)
+        $(terms[2]!)
       ]))
     | .CompProd ex ey ez =>
       let terms ← exprsToSyntax #[ex, ey, ez]
       evalTactic (← `(tactic| nth_rw 1 [
         compProd_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
-        (ez := $(terms[2]!))
+        $(terms[0]!)
+        $(terms[1]!)
+        $(terms[2]!)
       ]))
     | .Id ex =>
       let exStx ← Term.exprToSyntax ex
       evalTactic (← `(tactic| nth_rw 1 [
         id_lift
-        (ex := $exStx)
+        $exStx
       ]))
     | .Discard ex =>
       let exStx ← Term.exprToSyntax ex
       evalTactic (← `(tactic| nth_rw 1 [
         discard_lift
-        (ex := $exStx)
+        $exStx
       ]))
     | .Copy ex =>
       let exStx ← Term.exprToSyntax ex
       evalTactic (← `(tactic| nth_rw 1 [
         copy_lift
-        (ex := $exStx)
+        $exStx
       ]))
     | .Swap ex ey =>
       let terms ← exprsToSyntax #[ex, ey]
       evalTactic (← `(tactic| nth_rw 1 [
         swap_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
+        $(terms[0]!)
+        $(terms[1]!)
       ]))
   evalTactic (← `(tactic| rw [lift_congr.{_, _, $maxLvlStx}]))
   if !(← getGoals).isEmpty then
@@ -202,21 +202,65 @@ def mkKernelLiftEqProof (eqProofType : Expr) (maxLvl : Level) (op_data : List Ke
   setGoals savedGoals
   instantiateMVars mvar
 
+def mkKernelLiftEqProof (eqProofType lhs rhs : Expr) (maxLvl : Level) (op_data : List KernelOP) :
+    MetaM Expr := do
+  let mvar ← mkFreshExprSyntheticOpaqueMVar eqProofType
+  let mvarId := mvar.mvarId!
+  let propext := mkConst ``propext
+  match ← mvarId.apply propext with
+  | [mvarId] =>
+    let op_data := op_data.reverse
+    let mut mvarId := mvarId
+    logInfo m!"{← mvarId.getType}"
+    for op in op_data do
+      match op with
+      | .Comp ex ey ez η κ =>
+        let comp_lift_expr ← mkAppM ``comp_lift #[ex, ey, ez, η, κ]
+        mvarId ← mvarId.nth_rewrite 1 comp_lift_expr
+      | _ =>
+        throwError "mkKernelLiftEqProof' only supports Comp operations for now"
+    let (X, Y, xLvl, yLvl) ← getTypesFromKernel lhs
+    let ex ← constructMeasurableEquiv X xLvl maxLvl
+    let ey ← constructMeasurableEquiv Y yLvl maxLvl
+    let lift_congr_expr ← mkAppM ``lift_congr #[ex, ey, lhs, rhs]
+    logInfo m!"{← mvarId.getType}"
+    unless ← isDefEq (← mvarId.getType) (← inferType lift_congr_expr) do
+      throwError "Type mismatch: expected {← mvarId.getType}, got {← inferType lift_congr_expr}"
+    mvarId.assign lift_congr_expr
+    logInfo m!"{← mvarId.getType}"
+    instantiateMVars mvar
+  | _ =>
+    throwError "Failed to apply propext while building kernel_lift equivalence proof for
+      {eqProofType}"
+
 /-- Extract the lifted kernel equality from an original kernel equality, returning the lifted
 expression and metadata. -/
-def LiftEquality.expr (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
+def LiftEquality.expr (eq : Expr) : MetaM (Expr × List KernelOP × Level × Expr × Expr) := do
   let univs ← collectExprUniverses eq
   let maxLvl ← computeMaxLevel univs
-  let (lift_expr, op_data) ← transformEquality eq KernelOP <| liftKernel maxLvl
-  return (lift_expr, op_data, maxLvl)
+  let (lift_expr, op_data, lhs, rhs) ← transformEquality eq KernelOP <| liftKernel maxLvl
+  return (lift_expr, op_data, maxLvl, lhs, rhs)
+
+def LiftEquality.kernel (eq : Expr) : MetaM (Expr × Expr) := do
+  let univs ← collectExprUniverses eq
+  let maxLvl ← computeMaxLevel univs
+  let (lift_expr, op_data, lhs, rhs) ← transformEquality eq KernelOP <| liftKernel maxLvl
+  let eq_proof_type ← mkEq eq lift_expr
+  let proof ← mkKernelLiftEqProof eq_proof_type lhs rhs maxLvl op_data
+  logInfo m!"Proof: {proof}"
+  return (lift_expr, proof)
+
+def LiftEquality (eq : Expr) : MetaM (Expr × Expr) := do
+  LiftEquality.kernel eq
 
 /-- Lift a kernel equality to a common universe level, returning the lifted expression and a
 proof of equivalence. -/
-def LiftEquality (eq : Expr) : TacticM (Expr × Expr) := do
-  let eq ← whnfR <| ← instantiateMVars eq
-  let (lift_expr, op_data, maxLvl) ← LiftEquality.expr eq
+def LiftEquality' (eq : Expr) : TacticM (Expr × Expr) := do
+  let (lift_expr, op_data, maxLvl, _, _) ← LiftEquality.expr eq
   let eq_proof_type ← mkEq eq lift_expr
-  return (lift_expr, ← mkKernelLiftEqProof eq_proof_type maxLvl op_data)
+  let proof ← mkKernelLiftEqProof' eq_proof_type maxLvl op_data
+  logInfo m!"Proof: {proof}"
+  return (lift_expr, proof)
 
 /-- The `kernel_lift` tactic transforms a kernel equality to an equivalent equality in
 which all kernels are lifted to a common universe level.
@@ -232,4 +276,10 @@ syntax (name := kernelLift) "kernel_lift" (ppSpace location)? : tactic
 
 elab_rules : tactic
   | `(tactic| kernel_lift $[$loc]?) =>
-    expandOptLocation (Lean.mkOptionalNode loc) |> applyLocTactic <| LiftEquality
+    expandOptLocation (mkOptionalNode loc) |> applyLocTactic <| LiftEquality
+
+variable {X : Type*} [MeasurableSpace X] (κ : Kernel X X)
+
+example : κ ∘ₖ κ = 0 := by
+  kernel_lift
+  sorry

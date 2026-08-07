@@ -25,7 +25,7 @@ open Lean Elab Tactic Meta
 /-- Replace an equality in a goal or hypothesis with a transformed expression, using a provided
 transformation function. -/
 def replaceEquality (goal : MVarId) (fvarId : Option FVarId)
-    (transform : Expr → TacticM (Expr × Expr)) : TacticM MVarId := do
+    (transform : Expr → MetaM (Expr × Expr)) : TacticM MVarId := do
   goal.withContext do
     let expr ← match fvarId with
         | some fid => do
@@ -47,7 +47,7 @@ def replaceEquality (goal : MVarId) (fvarId : Option FVarId)
       mvarId.replaceTargetEq lift_expr eq_proof
 
 /-- Apply a given transformation to all goals and/or hypotheses specified by a `Location`. -/
-def applyLocTactic (loc : Location) (transform : Expr → TacticM (Expr × Expr)) :
+def applyLocTactic (loc : Location) (transform : Expr → MetaM (Expr × Expr)) :
     TacticM Unit := do
   match loc with
   | Location.targets hyps target =>

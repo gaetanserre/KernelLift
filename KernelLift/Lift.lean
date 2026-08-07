@@ -33,10 +33,12 @@ namespace ProbabilityTheory.Kernel
 
 variable {X : Type x} [MeasurableSpace X] {Y : Type y} [MeasurableSpace Y]
   {X' : Type w} [MeasurableSpace X'] {Y' : Type w} [MeasurableSpace Y']
-  {ex : X' ≃ᵐ X} {ey : Y' ≃ᵐ Y}
 
 /-- Cast a kernel to different types in the same universe level, using measurable equivalences. -/
-noncomputable def lift (κ : Kernel X Y) : Kernel X' Y' := (κ.map ey.symm).comap ex ex.measurable
+noncomputable def lift {ex : X' ≃ᵐ X} {ey : Y' ≃ᵐ Y} (κ : Kernel X Y) : Kernel X' Y' :=
+  (κ.map ey.symm).comap ex ex.measurable
+
+variable (ex : X' ≃ᵐ X) (ey : Y' ≃ᵐ Y)
 
 lemma lift_apply (κ : Kernel X Y) (a : X') :
     κ.lift (ex := ex) (ey := ey) a = (κ.map ey.symm) (ex a) := rfl
@@ -72,16 +74,17 @@ lemma isSFinite_lift (κ : Kernel X Y) :
       all_goals measurability
 
 instance (κ : Kernel X Y) [IsSFiniteKernel κ] : IsSFiniteKernel (lift (ex := ex) (ey := ey) κ) :=
-  (isSFinite_lift κ).mp ‹_›
+  (isSFinite_lift ex ey κ).mp ‹_›
 
 instance (κ : Kernel X Y) [IsMarkovKernel κ] : IsMarkovKernel (lift (ex := ex) (ey := ey) κ) := by
   simp only [lift]
   have := IsMarkovKernel.map κ ey.symm.measurable
   exact IsMarkovKernel.comap _ ex.measurable
 
-lemma lift_congr {κ η : Kernel X Y} :
-    κ.lift (ex := ex) (ey := ey) = η.lift (ex := ex) (ey := ey) ↔ κ = η := by
+lemma lift_congr (κ η : Kernel X Y) :
+    κ = η ↔ κ.lift (ex := ex) (ey := ey) = η.lift (ex := ex) (ey := ey) := by
   constructor
+  · grind
   · intro h
     ext a s hs
     replace h := DFunLike.congr (x := ey.symm '' s) (DFunLike.congr (x := ex.symm a) h rfl) rfl
@@ -90,11 +93,10 @@ lemma lift_congr {κ η : Kernel X Y} :
       rwa [image_symm, image_preimage] at h
     · measurability
     · measurability
-  · grind
 
 variable {Z : Type z} [MeasurableSpace Z] {T : Type t} [MeasurableSpace T]
   {Z' : Type w} [MeasurableSpace Z'] {T' : Type w} [MeasurableSpace T']
-  {ez : Z' ≃ᵐ Z} {et : T' ≃ᵐ T}
+  (ez : Z' ≃ᵐ Z) (et : T' ≃ᵐ T)
 
 lemma comp_lift (η : Kernel X Y) (κ : Kernel Z X) :
     η.lift (ex := ex) (ey := ey) ∘ₖ κ.lift (ex := ez) (ey := ex) =
@@ -102,7 +104,7 @@ lemma comp_lift (η : Kernel X Y) (κ : Kernel Z X) :
   ext _ _ hs
   rw [lift_apply', comp_apply', comp_apply', lift_apply, lintegral_map]
   · congr with y
-    simp [lift_apply' _ _ hs]
+    simp [lift_apply' _ _ _ _ hs]
   all_goals try fun_prop
   all_goals try measurability
   · exact Kernel.measurable_coe _ hs
@@ -113,23 +115,23 @@ lemma parallelComp_lift (κ : Kernel X Y) (η : Kernel Z T) :
   by_cases hκ : IsSFiniteKernel <| lift (ex := ex) (ey := ey) κ
   swap
   · simp only [hκ, not_false_eq_true, parallelComp_of_not_isSFiniteKernel_left,
-    (isSFinite_lift κ).not.mpr hκ]
+    (isSFinite_lift ex ey κ).not.mpr hκ]
     simp [lift]
   by_cases hη : IsSFiniteKernel <| lift (ex := ez) (ey := et) η
   swap
   · simp only [hη, not_false_eq_true, parallelComp_of_not_isSFiniteKernel_right,
-    (isSFinite_lift η).not.mpr hη]
+    (isSFinite_lift ez et η).not.mpr hη]
     simp [lift]
   simp only [lift]
-  replace hκ := (isSFinite_lift κ).mpr hκ
-  replace hη := (isSFinite_lift η).mpr hη
+  replace hκ := (isSFinite_lift ex ey κ).mpr hκ
+  replace hη := (isSFinite_lift ez et η).mpr hη
   rw [comap_parallelComp_comap, map_parallelComp_map]
   · rfl
   all_goals fun_prop
 
 lemma id_lift : Kernel.id (α := X') = Kernel.id.lift (ex := ex) (ey := ex) := by
   ext _ _ hs
-  rw [lift_apply' _ _ hs]
+  rw [lift_apply' _ _ _ _ hs]
   simp only [id_apply]
   rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
   · exact Set.indicator_eq_indicator (by simp) rfl
@@ -137,14 +139,14 @@ lemma id_lift : Kernel.id (α := X') = Kernel.id.lift (ex := ex) (ey := ex) := b
 
 lemma discard_lift : discard.{_, w} X' = (discard X).lift (ex := ex) (ey := punit) := by
   ext _ _ hs
-  rw [lift_apply' _ _ hs]
+  rw [lift_apply' _ _ _ _ hs]
   simp only [discard_apply, MeasurableSpace.measurableSet_top, Measure.dirac_apply']
   exact Set.indicator_eq_indicator (by grind) rfl
 
 
 lemma copy_lift : copy X' = (copy X).lift (ex := ex) (ey := ex.prod ex) := by
   ext _ _ hs
-  rw [lift_apply' _ _ hs]
+  rw [lift_apply' _ _ _ _ hs]
   simp only [copy_apply]
   rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
   · refine Set.indicator_eq_indicator ?_ rfl
@@ -153,7 +155,7 @@ lemma copy_lift : copy X' = (copy X).lift (ex := ex) (ey := ex.prod ex) := by
 
 lemma swap_lift : swap X' Y' = (swap X Y).lift (ex := ex.prod ey) (ey := ey.prod ex) := by
   ext a s hs
-  rw [lift_apply' _ _ hs]
+  rw [lift_apply' _ _ _ _ hs]
   simp only [swap_apply]
   rw [Measure.dirac_apply' _ hs, Measure.dirac_apply']
   · refine Set.indicator_eq_indicator ?_ rfl
@@ -169,12 +171,12 @@ lemma prod_lift (κ : Kernel X Y) (η : Kernel X Z) :
   by_cases hκ : IsSFiniteKernel <| lift (ex := ex) (ey := ey) κ
   swap
   · simp only [hκ, not_false_eq_true, prod_of_not_isSFiniteKernel_left,
-    (isSFinite_lift κ).not.mpr hκ]
+    (isSFinite_lift ex ey κ).not.mpr hκ]
     simp [lift]
   by_cases hη : IsSFiniteKernel <| lift (ex := ex) (ey := ez) η
   swap
   · simp only [hη, not_false_eq_true, prod_of_not_isSFiniteKernel_right,
-    (isSFinite_lift η).not.mpr hη]
+    (isSFinite_lift ex ez η).not.mpr hη]
     simp [lift]
   simp only [prod]
   rw [← comp_lift (ex := ex.prod ex), ← parallelComp_lift, ← copy_lift]
@@ -185,12 +187,12 @@ lemma compProd_lift (κ : Kernel X Y) (η : Kernel (X × Y) Z) :
   by_cases hκ : IsSFiniteKernel <| lift (ex := ex) (ey := ey) κ
   swap
   · simp only [hκ, not_false_eq_true, compProd_of_not_isSFiniteKernel_left,
-    (isSFinite_lift κ).not.mpr hκ]
+    (isSFinite_lift ex ey κ).not.mpr hκ]
     simp [lift]
   by_cases hη : IsSFiniteKernel <| lift (ex := ex.prod ey) (ey := ez) η
   swap
   · simp only [hη, not_false_eq_true, compProd_of_not_isSFiniteKernel_right,
-    (isSFinite_lift η).not.mpr hη]
+    (isSFinite_lift (ex.prod ey) ez η).not.mpr hη]
     simp [lift]
   simp only [compProd]
   rw [← comp_lift (ex := ex.prod ex) (ey := ey.prod ez), ← copy_lift,
@@ -209,6 +211,6 @@ instance {κ : Kernel X Y} [IsDeterministic κ] :
     IsDeterministic (κ.lift (ex := ex) (ey := ey)) where
   parallelComp_self_comp_copy' := by
     rw [parallelComp_lift, copy_lift (ex := ex), copy_lift (ex := ey), comp_lift, comp_lift,
-      lift_congr, κ.parallelComp_self_comp_copy]
+      ← lift_congr, κ.parallelComp_self_comp_copy]
 
 end ProbabilityTheory.Kernel

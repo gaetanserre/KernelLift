@@ -133,79 +133,6 @@ partial def unliftKernel (eLvl : Level) (e : Expr) (op_data : List KernelOP) :
     return (κ, op_data)
   | _ => return (e, op_data)
 
-/-- Construct the proof of equivalence between the lifted kernel equality and the original one. -/
-def mkKernelUnliftEqProof (eqProofType : Expr) (eLvl : Level) (op_data : List KernelOP) :
-    TacticM Expr := do
-  let eLvlStx ← liftMacroM <| levelToSyntax eLvl
-  let savedGoals ← getGoals
-  let mvar ← mkFreshExprSyntheticOpaqueMVar eqProofType
-  let mvarId := mvar.mvarId!
-  setGoals [mvarId]
-  let op_data := op_data.reverse
-  evalTactic (← `(tactic| apply propext))
-  for op in op_data do
-    match op with
-    | .Comp ex ey ez =>
-      let terms ← exprsToSyntax #[ex, ey, ez]
-      evalTactic (← `(tactic| nth_rw 1 [
-        comp_lift (ex := $(terms[0]!)) (ey := $(terms[1]!)) (ez := $(terms[2]!))]))
-    | .ParallelComp ex ey ez et =>
-      let terms ← exprsToSyntax #[ex, ey, ez, et]
-      evalTactic (← `(tactic| nth_rw 1 [
-        parallelComp_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
-        (ez := $(terms[2]!))
-        (et := $(terms[3]!))
-      ]))
-    | .Prod ex ey ez =>
-      let terms ← exprsToSyntax #[ex, ey, ez]
-      evalTactic (← `(tactic| nth_rw 1 [
-        prod_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
-        (ez := $(terms[2]!))
-      ]))
-    | .CompProd ex ey ez =>
-      let terms ← exprsToSyntax #[ex, ey, ez]
-      evalTactic (← `(tactic| nth_rw 1 [
-        compProd_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
-        (ez := $(terms[2]!))
-      ]))
-    | .Id ex =>
-      let exStx ← Term.exprToSyntax ex
-      evalTactic (← `(tactic| nth_rw 1 [
-        id_lift
-        (ex := $exStx)
-      ]))
-    | .Discard ex =>
-      let exStx ← Term.exprToSyntax ex
-      evalTactic (← `(tactic| nth_rw 1 [
-        discard_lift
-        (ex := $exStx)
-      ]))
-    | .Copy ex =>
-      let exStx ← Term.exprToSyntax ex
-      evalTactic (← `(tactic| nth_rw 1 [
-        copy_lift
-        (ex := $exStx)
-      ]))
-    | .Swap ex ey =>
-      let terms ← exprsToSyntax #[ex, ey]
-      evalTactic (← `(tactic| nth_rw 1 [
-        swap_lift
-        (ex := $(terms[0]!))
-        (ey := $(terms[1]!))
-      ]))
-  evalTactic (← `(tactic| rw [lift_congr.{_, _, $eLvlStx}]))
-  if !(← getGoals).isEmpty then
-    setGoals savedGoals
-    throwError "Failed to solve all goals while building kernel_lift equivalence proof"
-  setGoals savedGoals
-  instantiateMVars mvar
-
 /-- Extract the original kernel equality from a lifted kernel equality, returning the unlifted
 expression and metadata. -/
 def UnliftEquality.expr (eq : Expr) : MetaM (Expr × List KernelOP × Level) := do
@@ -222,7 +149,7 @@ def UnliftEquality (eq : Expr) : TacticM (Expr × Expr) := do
   let eq ← whnfR <| ← instantiateMVars eq
   let (unlift_expr, op_data, eLvl) ← UnliftEquality.expr eq
   let eq_proof_type ← mkEq eq unlift_expr
-  return (unlift_expr, ← mkKernelUnliftEqProof eq_proof_type eLvl op_data)
+  return (unlift_expr, ← mkKernelLiftEqProof eq_proof_type eLvl op_data)
 
 /-- The `kernel_unlift` tactic is the inverse of `kernel_lift`. It transforms equalities of lifted
 kernels back into equalities of the original kernels.
@@ -238,4 +165,4 @@ syntax (name := kernelUnlift) "kernel_unlift" (ppSpace location)? : tactic
 
 elab_rules : tactic
   | `(tactic| kernel_unlift $[$loc]?) =>
-    expandOptLocation (Lean.mkOptionalNode loc) |> applyLocTactic <| UnliftEquality
+    expandOptLocation (mkOptionalNode loc) |> applyLocTactic <| UnliftEquality

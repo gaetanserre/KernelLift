@@ -111,7 +111,7 @@ partial def getOriginalType (t : Expr) : MetaM (Expr × Level) := do
 
 /-- Kernel operations recorded during transformation for later rewriting. -/
 inductive KernelOP
-  | Comp (ex ey ez : Expr)
+  | Comp (ex ey ez κ η : Expr)
   | ParallelComp (ez ey ez et : Expr)
   | Prod (ex ey ez : Expr)
   | CompProd (ex ey ez : Expr)
@@ -122,7 +122,7 @@ inductive KernelOP
 
 instance : ToMessageData KernelOP where
   toMessageData
-    | .Comp ex ey ez => m!"Composition with {ex}, {ey}, {ez}"
+    | .Comp ex ey ez κ η => m!"Composition with {ex}, {ey}, {ez}, {κ}, {η}"
     | .ParallelComp ex ey ez et =>
       m!"Parallel composition with {ex}, {ey}, {ez}, {et}"
     | .Prod ex ey ez => m!"Product with {ex}, {ey}, {ez}"
@@ -135,10 +135,14 @@ instance : ToMessageData KernelOP where
 /-- Transform both sides of an equality and return the new equality plus metadata. -/
 def transformEquality (e : Expr) (OP : Type)
     (transform : Expr → List OP → MetaM (Expr × List OP)) :
-    MetaM (Expr × List OP) := do
-  let e ← whnf (← zetaReduce (← instantiateMVars e))
+    MetaM (Expr × List OP × Expr × Expr) := do
+  let e ← whnfR (← zetaReduce (← instantiateMVars e))
   let e := e.consumeMData
   let some (_, lhs, rhs) := e.eq? | throwError "Expected an equality, got: {e}"
   let (lhs', lh) ← transform lhs []
   let (rhs', rh) ← transform rhs lh
-  return (← mkAppM `Eq #[lhs', rhs'], rh)
+  return (← mkEq lhs' rhs', rh, lhs, rhs)
+
+def Lean.MVarId.nth_rewrite (mvarId : MVarId) (n : Nat) (eq : Expr) : MetaM MVarId := do
+  let r ← mvarId.rewrite (← mvarId.getType) eq (config := { occs := .pos [n] })
+  mvarId.replaceTargetEq r.eNew r.eqProof
