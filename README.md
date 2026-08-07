@@ -1,16 +1,16 @@
-# Kernel-Lift
+# Eq-Lift
 
-Tactics for unifying universe levels when working with probability kernels in Lean.
+Tactics for unifying universe levels of equality statements in Lean 4.
 
 ## Description
 
-Kernel-Lift provides two complementary tactics for working with probability kernels:
+Eq-Lift provides two complementary tactics for working with equality statements:
 
-- **`kernel_lift` tactic**: Lifts kernels to a common universe level. When working with kernels of different universe levels, this tactic automatically transforms them to operate at a unified level.
+- The **`lift_eq` tactic**: Lifts both sides of an equality statement to a common universe level. The tactic automatically propagates the lifting throughout operators and primitives, ensuring that the entire expression is consistently lifted. It is made to be modular and can be extended to handle new types, operators, and primitives as needed.
 
-- **`kernel_unlift` tactic**: Reverses the lifting process. Transforms lifted kernels back to their original universe levels.
+- The **`unlift_eq` tactic**: Reverses the lifting process. Transforms lifted equality statements back to their original universe levels, ensuring that the expressions are returned to their initial form.
 
-These tactics handle several kernel operations and primitives: composition, parallel composition, product, identity, discard, copy, and swap.
+For now, these tactics work with probability kernels, but can easily be extended to other types of expressions. See [`KernelLift.lean`](EqLift/Tactic/Kernel/KernelLift.lean) and [`KernelUnlift.lean`](EqLift/Tactic/Kernel/KernelUnlift.lean) for a detailed implementation of the tactics for probability kernels.
 
 ## Usage
 
