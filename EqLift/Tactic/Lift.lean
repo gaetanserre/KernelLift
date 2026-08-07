@@ -48,6 +48,10 @@ def getMaxLvl (eq : Expr) : MetaM Level := do
   let univs ← collectExprUniverses eq
   computeMaxLevel univs
 
+/-- Lifts an equality expression to a common universe level using the registered lifting functions
+and finisher functions. -/
+def liftEquality := transformEquality getMaxLvl liftImplRef liftFinisherRef
+
 /-- Transforms an equality expression by lifting both sides to a common universe level.
 
 The tactic supports location specifiers like `rw` or `simp`:
@@ -61,7 +65,6 @@ syntax (name := Eqlift) "lift_eq" (ppSpace location)? : tactic
 
 elab_rules : tactic
   | `(tactic| lift_eq $[$loc]?) =>
-    expandOptLocation (mkOptionalNode loc) |> applyLocTactic
-    <| transformEquality getMaxLvl liftImplRef liftFinisherRef
+    expandOptLocation (mkOptionalNode loc) |> applyLocTactic <| liftEquality
 
 end

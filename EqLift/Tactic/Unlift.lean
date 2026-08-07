@@ -43,6 +43,10 @@ def registerUnliftFinisher (f : finisherMetadata) : IO Unit := do
 unlifting functions. -/
 def unliftExpr := fun a b c ↦ transformExpr a b c unliftImplRef
 
+/-- Unlifts an equality expression that has been lifted to a common universe level using the
+registered unlifting functions and finisher functions. -/
+def unliftEquality := transformEquality getLevelFromEq unliftImplRef unliftFinisherRef
+
 /-- Performs the inverse operation of `lift_eq`, transforming an equality that has been lifted to a
 common universe level back to its original form.
 
@@ -57,7 +61,6 @@ syntax (name := Equnlift) "unlift_eq" (ppSpace location)? : tactic
 
 elab_rules : tactic
   | `(tactic| unlift_eq $[$loc]?) =>
-    expandOptLocation (mkOptionalNode loc) |> applyLocTactic
-    <| transformEquality getLevelFromEq unliftImplRef unliftFinisherRef
+    expandOptLocation (mkOptionalNode loc) |> applyLocTactic <| unliftEquality
 
 end
