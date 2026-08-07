@@ -5,16 +5,26 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import KernelLift.Tactic.Test.Lift
+public import EqLift.Kernel.Lift
+public import EqLift.Tactic.Lift
+public import EqLift.Tactic.Kernel.Utils
+
+/-!
+# Implementation of the `lift_eq` tactic for kernels.
+
+This file contains functions that propagate the lifting of kernel expressions through several
+operators and primitives, and constructs the necessary proofs for the `lift_eq` tactic.
+-/
 
 public meta section
 
 open Lean Meta Parser.Tactic ProbabilityTheory ProbabilityTheory.Kernel
 
+/-- Lifts a composition of kernels by lifting the inner kernels. -/
 def liftComposition (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
   unless e.isAppOf ``Kernel.comp do
-    throwError "Expected a composition of kernels, but got {e}"
+    throwError "Expected a composition of kernels, but got {e}."
   let args := e.getAppArgs
   let η := args[args.size - 2]!
   let κ := args[args.size - 1]!
@@ -28,12 +38,13 @@ def liftComposition (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let (κ', proofs_κ) ← liftExpr κ maxLvl proofs_η
   return (← mkAppM ``Kernel.comp #[η', κ'], comp_lift_expr :: proofs_κ)
 
---initialize registerLiftExpr liftComposition
+initialize registerLiftExpr liftComposition
 
+/-- Lifts a parallel composition of kernels by lifting the inner kernels. -/
 def liftParallelComp (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
   unless e.isAppOf ``Kernel.parallelComp do
-    throwError "Expected a parallel composition of kernels, but got {e}"
+    throwError "Expected a parallel composition of kernels, but got {e}."
   let args := e.getAppArgs
   let κ := args[args.size - 2]!
   let η := args[args.size - 1]!
@@ -48,12 +59,13 @@ def liftParallelComp (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let (η', proofs_η) ← liftExpr η maxLvl proofs_κ
   return (← mkAppM ``Kernel.parallelComp #[κ', η'], parallelComp_lift_expr :: proofs_η)
 
---initialize registerLiftExpr liftParallelComp
+initialize registerLiftExpr liftParallelComp
 
+/-- Lifts a product of kernels by lifting the inner kernels. -/
 def liftProd (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
   unless e.isAppOf ``Kernel.prod do
-    throwError "Expected a product of kernels, but got {e}"
+    throwError "Expected a product of kernels, but got {e}."
   let args := e.getAppArgs
   let κ := args[args.size - 2]!
   let η := args[args.size - 1]!
@@ -67,12 +79,13 @@ def liftProd (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let (η', proofs_η) ← liftExpr η maxLvl proofs_κ
   return (← mkAppM ``Kernel.prod #[κ', η'], prod_lift_expr :: proofs_η)
 
---initialize registerLiftExpr liftProd
+initialize registerLiftExpr liftProd
 
+/-- Lifts a composition-product of kernels by lifting the inner kernels. -/
 def liftCompProd (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
   unless e.isAppOf ``Kernel.compProd do
-    throwError "Expected a composition of product of kernels, but got {e}"
+    throwError "Expected a composition of product of kernels, but got {e}."
   let args := e.getAppArgs
   let κ := args[args.size - 2]!
   let η := args[args.size - 1]!
@@ -86,52 +99,55 @@ def liftCompProd (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let (η', proofs_η) ← liftExpr η maxLvl proofs_κ
   return (← mkAppM ``Kernel.compProd #[κ', η'], compProd_lift_expr :: proofs_η)
 
---initialize registerLiftExpr liftCompProd
+initialize registerLiftExpr liftCompProd
 
+/-- Lifts a composition of kernels by lifting the carrier type. -/
 def liftId (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
   unless e.isAppOf ``Kernel.id do
-    throwError "Expected the identity kernel, but got {e}"
+    throwError "Expected the identity kernel, but got {e}."
   let (X, _, xLvl, _) ← getTypesFromKernel e
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let (X', _) ← getTypesFromMeasurableEquiv ex
-  let mX' ← synthInstance (mkApp (Expr.const ``MeasurableSpace [maxLvl]) X')
   let id_lift_expr ← mkAppM ``id_lift #[ex]
+  let mX' ← synthInstance (mkApp (Expr.const ``MeasurableSpace [maxLvl]) X')
   return (← mkAppOptM ``Kernel.id #[X', mX'], id_lift_expr :: proofs)
 
---initialize registerLiftExpr liftId
+initialize registerLiftExpr liftId
 
+/-- Lifts a discard kernel by lifting the carrier type. -/
 def liftDiscard (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
-  logInfo "TESTTTTT"
   unless e.isAppOf ``Kernel.discard do
-    throwError "Expected the discard kernel, but got {e}"
-  let (X, _, xLvl, _) ← getTypesFromKernel e
+    throwError "Expected the discard kernel, but got {e}."
+  let (X, _, xLvl, punitLvl) ← getTypesFromKernel e
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let (X', _) ← getTypesFromMeasurableEquiv ex
-  logInfo m!"Discard"
-  let discard_lift_expr ← mkAppM ``discard_lift #[ex]
+  let discard_const := Expr.const ``discard_lift [xLvl, maxLvl, punitLvl]
+  let discard_lift_expr ← mkAppM' discard_const #[ex]
   let discard_const := Expr.const ``Kernel.discard [maxLvl, maxLvl]
   return (← mkAppOptM' discard_const #[X', none], discard_lift_expr :: proofs)
 
 initialize registerLiftExpr liftDiscard
 
+/-- Lifts a copy kernel by lifting the carrier type. -/
 def liftCopy (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
   unless e.isAppOf ``Kernel.copy do
-    throwError "Expected the copy kernel, but got {e}"
+    throwError "Expected the copy kernel, but got {e}."
   let (X, _, xLvl, _) ← getTypesFromKernel e
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let (X', _) ← getTypesFromMeasurableEquiv ex
   let copy_lift_expr ← mkAppM ``copy_lift #[ex]
   return (← mkAppOptM ``Kernel.copy #[X', none], copy_lift_expr :: proofs)
 
---initialize registerLiftExpr liftCopy
+initialize registerLiftExpr liftCopy
 
+/-- Lifts a swap kernel by lifting the carrier types. -/
 def liftSwap (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
   unless e.isAppOf ``Kernel.swap do
-    throwError "Expected the swap kernel, but got {e}"
+    throwError "Expected the swap kernel, but got {e}."
   let args := e.getAppArgs
   let X := args[0]!
   let Y := args[1]!
@@ -146,9 +162,9 @@ def liftSwap (e : Expr) (maxLvl : Level) (proofs : List Expr) :
 
 initialize registerLiftExpr liftSwap
 
+/-- Lifts a kernel using `Kernel.lift`. -/
 def liftKernel (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     MetaM (Expr × List Expr) := do
-  logInfo m!"TESTTTTT {e}"
   let (X, Y, xLvl, yLvl) ← getTypesFromKernel e
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let ey ← constructMeasurableEquiv Y yLvl maxLvl
@@ -156,14 +172,15 @@ def liftKernel (e : Expr) (maxLvl : Level) (proofs : List Expr) :
     #[none, none, none, none, none, none, none, none, ex, ey, e]
   return (expr, proofs)
 
---initialize registerLiftExpr liftKernel
+initialize registerLiftExpr liftKernel
 
-def finisherKernel (lhs rhs : Expr) (maxLvl : Level) : MetaM Expr := do
+/-- Constructs the finisher proof that concludes the lifting after rewriting the equalities. -/
+def finisherKernelLift (lhs rhs _ _ : Expr) (maxLvl : Level) : MetaM Expr := do
   let (X, Y, xLvl, yLvl) ← getTypesFromKernel lhs
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let ey ← constructMeasurableEquiv Y yLvl maxLvl
   mkAppM ``lift_congr #[ex, ey, lhs, rhs]
 
-initialize registerLiftFinisher finisherKernel
+initialize registerLiftFinisher finisherKernelLift
 
 end

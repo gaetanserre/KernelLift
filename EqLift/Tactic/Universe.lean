@@ -50,12 +50,12 @@ def collectExprUniverses (e : Expr) : MetaM (List Level) := do
 /-- Compute the maximum universe level from a list of levels. -/
 def computeMaxLevel (levels : List Level) : MetaM Level :=
   match levels with
-    | [] => throwError "Expected at least one universe level, got an empty list"
+    | [] => throwError "Expected at least one universe level, got an empty list."
     | head :: tail => pure (tail.foldl Level.max head)
 
 /-- Extract the universe level from the left side of an equality expression. -/
 def getLevelFromEq (eq : Expr) : MetaM Level := do
   let eq ← whnf (← zetaReduce (← instantiateMVars eq))
   let eq := eq.consumeMData
-  let some (_, lhs, _) := eq.eq? | throwError "Expected an equality, got: {eq}"
+  let some (_, lhs, _) := eq.eq? | throwError "Expected an equality, got: {eq}."
   getDecLevel (← inferType lhs)

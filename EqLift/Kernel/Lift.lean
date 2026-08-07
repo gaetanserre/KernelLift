@@ -5,8 +5,8 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import KernelLift.ForMathlib.Kernel
-public import KernelLift.ForMathlib.MeasurableEquiv
+public import EqLift.ForMathlib.Kernel
+public import EqLift.ForMathlib.MeasurableEquiv
 public import Mathlib.Probability.Kernel.Composition.CompProd
 
 /-!

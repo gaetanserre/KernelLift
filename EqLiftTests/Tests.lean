@@ -5,12 +5,12 @@ Authors: Gaëtan Serré
 -/
 module
 
-public import KernelLift.Tactic.Test.Kernel
+public import EqLift
 public import Mathlib.Probability.Kernel.Composition.KernelLemmas
 public import Mathlib.Probability.Kernel.Deterministic
 
 /-!
-# Tests for `kernel_lift` and `kernel_unlift` tactics
+# Tests for `lift_eq` and `unlift_eq` tactics
 -/
 
 @[expose] public section
@@ -25,13 +25,9 @@ namespace ProbabilityTheory.Kernel
 
 variable {κ : Kernel X Y} {ξ : Kernel Z T} {η : Kernel Y Z}
 
-example : discard Y = 0 := by
-  lift_eq
-  sorry
-
 lemma swap_parallelComp₀ : swap Y T ∘ₖ (κ ∥ₖ ξ) = ξ ∥ₖ κ ∘ₖ swap X Z := by
   lift_eq
-  kernel_unlift
+  unlift_eq
   exact swap_parallelComp
 
 variable [IsSFiniteKernel η] [IsSFiniteKernel ξ]
@@ -39,13 +35,13 @@ variable [IsSFiniteKernel η] [IsSFiniteKernel ξ]
 lemma parallelComp_id_left_comp_parallelComp₀ :
     (Kernel.id ∥ₖ ξ) ∘ₖ (κ ∥ₖ η) = κ ∥ₖ (ξ ∘ₖ η) := by
   lift_eq
-  kernel_unlift
+  unlift_eq
   exact parallelComp_id_left_comp_parallelComp
 
 lemma parallelComp_id_right_comp_parallelComp₀ :
     (ξ ∥ₖ Kernel.id) ∘ₖ (η ∥ₖ κ) = (ξ ∘ₖ η) ∥ₖ κ := by
   lift_eq
-  kernel_unlift
+  unlift_eq
   exact parallelComp_id_right_comp_parallelComp
 
 variable [IsSFiniteKernel κ]
@@ -55,19 +51,19 @@ variable {κ' : Kernel X Y'} {η' : Kernel Y' Z'} [IsSFiniteKernel κ'] [IsSFini
 lemma parallelComp_comp_parallelComp₀ :
     (η ∥ₖ η') ∘ₖ (κ ∥ₖ κ') = (η ∘ₖ κ) ∥ₖ (η' ∘ₖ κ') := by
   lift_eq
-  kernel_unlift
+  unlift_eq
   exact parallelComp_comp_parallelComp
 
 lemma parallelComp_comp_prod₀ :
     (η ∥ₖ η') ∘ₖ (κ ×ₖ κ') = (η ∘ₖ κ) ×ₖ (η' ∘ₖ κ') := by
   lift_eq
-  kernel_unlift
+  unlift_eq
   exact parallelComp_comp_prod
 
 lemma discard_comp_deterministic {f : X → Y} (hf : Measurable f) :
     discard Y ∘ₖ (deterministic f hf) = discard X := by
   lift_eq
-  kernel_unlift
+  unlift_eq
   exact comp_discard _
 
 variable {κ : Kernel X Y}

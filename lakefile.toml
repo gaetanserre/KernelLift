@@ -1,8 +1,8 @@
-name = "KernelLift"
+name = "EqLift"
 version = "0.1.0"
 keywords = ["math"]
-defaultTargets = ["KernelLift"]
-testDriver = "KernelLiftTests"
+defaultTargets = ["EqLift"]
+testDriver = "EqLiftTests"
 
 [leanOptions]
 pp.unicode.fun = true                 # pretty-prints `fun a ↦ b`
@@ -15,8 +15,8 @@ name = "mathlib"
 scope = "leanprover-community"
 
 [[lean_lib]]
-name = "KernelLift"
+name = "EqLift"
 
 [[lean_lib]]
-name = "KernelLiftTests"
-globs = ["KernelLiftTests.+"]
+name = "EqLiftTests"
+globs = ["EqLiftTests.+"]
