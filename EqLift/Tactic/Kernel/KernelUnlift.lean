@@ -35,8 +35,8 @@ def unliftComposition (e : Expr) (eLvl : Level) (proofs : List Expr) :
   let ex ← constructMeasurableEquiv X xLvl eLvl
   let ey ← constructMeasurableEquiv Y yLvl eLvl
   let ez ← constructMeasurableEquiv Z tLvl eLvl
-  let comp_unlift_expr ← mkAppM ``comp_lift #[ex, ey, ez, η, κ]
-  return (← mkAppM ``Kernel.comp #[η, κ], comp_unlift_expr :: proofs_κ)
+  let comp_unlift_proof ← mkAppM ``comp_lift #[ex, ey, ez, η, κ]
+  return (← mkAppM ``Kernel.comp #[η, κ], comp_unlift_proof :: proofs_κ)
 
 initialize registerUnliftExpr unliftComposition
 
@@ -56,8 +56,8 @@ def unliftParallelComp (e : Expr) (eLvl : Level) (proofs : List Expr) :
   let ey ← constructMeasurableEquiv Y yLvl eLvl
   let ez ← constructMeasurableEquiv Z zLvl eLvl
   let et ← constructMeasurableEquiv T tLvl eLvl
-  let parallelComp_unlift_expr ← mkAppM ``parallelComp_lift #[ex, ey, ez, et, κ, η]
-  return (← mkAppM ``Kernel.parallelComp #[κ, η], parallelComp_unlift_expr :: proofs_η)
+  let parallelComp_unlift_proof ← mkAppM ``parallelComp_lift #[ex, ey, ez, et, κ, η]
+  return (← mkAppM ``Kernel.parallelComp #[κ, η], parallelComp_unlift_proof :: proofs_η)
 
 initialize registerUnliftExpr unliftParallelComp
 
@@ -76,8 +76,8 @@ def unliftProd (e : Expr) (eLvl : Level) (proofs : List Expr) :
   let ex ← constructMeasurableEquiv X xLvl eLvl
   let ey ← constructMeasurableEquiv Y yLvl eLvl
   let ez ← constructMeasurableEquiv Z zLvl eLvl
-  let prod_unlift_expr ← mkAppM ``prod_lift #[ex, ey, ez, κ, η]
-  return (← mkAppM ``Kernel.prod #[κ, η], prod_unlift_expr :: proofs_η)
+  let prod_unlift_proof ← mkAppM ``prod_lift #[ex, ey, ez, κ, η]
+  return (← mkAppM ``Kernel.prod #[κ, η], prod_unlift_proof :: proofs_η)
 
 initialize registerUnliftExpr unliftProd
 
@@ -96,8 +96,8 @@ def unliftCompProd (e : Expr) (eLvl : Level) (proofs : List Expr) :
   let ex ← constructMeasurableEquiv X xLvl eLvl
   let ey ← constructMeasurableEquiv Y yLvl eLvl
   let ez ← constructMeasurableEquiv Z zLvl eLvl
-  let compProd_unlift_expr ← mkAppM ``compProd_lift #[ex, ey, ez, κ, η]
-  return (← mkAppM ``compProd #[κ, η], compProd_unlift_expr :: proofs_η)
+  let compProd_unlift_proof ← mkAppM ``compProd_lift #[ex, ey, ez, κ, η]
+  return (← mkAppM ``compProd #[κ, η], compProd_unlift_proof :: proofs_η)
 
 initialize registerUnliftExpr unliftCompProd
 
@@ -112,9 +112,9 @@ def unliftId (e : Expr) (eLvl : Level) (proofs : List Expr) :
     return (e, proofs)
   else
     let ex ← constructMeasurableEquiv X xLvl eLvl
-    let id_unlift_expr ← mkAppM ``id_lift #[ex]
-    let mX ← synthInstance (mkApp (Expr.const ``MeasurableSpace [xLvl]) X)
-    return (← mkAppOptM ``Kernel.id #[X, mX], id_unlift_expr :: proofs)
+    let id_unlift_proof ← mkAppM ``id_lift #[ex]
+    let mX ← synthInstance (mkApp (mkConst ``MeasurableSpace [xLvl]) X)
+    return (← mkAppOptM ``Kernel.id #[X, mX], id_unlift_proof :: proofs)
 
 initialize registerUnliftExpr unliftId
 
@@ -129,10 +129,10 @@ def unliftDiscard (e : Expr) (eLvl : Level) (proofs : List Expr) :
     return (e, proofs)
   else
     let ex ← constructMeasurableEquiv X xLvl eLvl
-    let discard_const := Expr.const ``discard_lift [xLvl, eLvl, Level.zero]
-    let discard_unlift_expr ← mkAppM' discard_const #[ex]
-    let discard_const := Expr.const ``Kernel.discard [xLvl, 0]
-    return (← mkAppOptM' discard_const #[X, none], discard_unlift_expr :: proofs)
+    let discard_const := mkConst ``discard_lift [xLvl, eLvl, Level.zero]
+    let discard_unlift_proof ← mkAppM' discard_const #[ex]
+    let discard_const := mkConst ``Kernel.discard [xLvl, 0]
+    return (← mkAppOptM' discard_const #[X, none], discard_unlift_proof :: proofs)
 
 initialize registerUnliftExpr unliftDiscard
 
@@ -147,8 +147,8 @@ def unliftCopy (e : Expr) (eLvl : Level) (proofs : List Expr) :
     return (e, proofs)
   else
     let ex ← constructMeasurableEquiv X xLvl eLvl
-    let copy_unlift_expr ← mkAppM ``copy_lift #[ex]
-    return (← mkAppOptM ``Kernel.copy #[X, none], copy_unlift_expr :: proofs)
+    let copy_unlift_proof ← mkAppM ``copy_lift #[ex]
+    return (← mkAppOptM ``Kernel.copy #[X, none], copy_unlift_proof :: proofs)
 
 initialize registerUnliftExpr unliftCopy
 
@@ -167,8 +167,8 @@ def unliftSwap (e : Expr) (eLvl : Level) (proofs : List Expr) :
   else
     let ex ← constructMeasurableEquiv X xLvl eLvl
     let ey ← constructMeasurableEquiv Y yLvl eLvl
-    let swap_unlift_expr ← mkAppM ``swap_lift #[ex, ey]
-    return (← mkAppOptM ``Kernel.swap #[X, Y, none, none], swap_unlift_expr :: proofs)
+    let swap_unlift_proof ← mkAppM ``swap_lift #[ex, ey]
+    return (← mkAppOptM ``Kernel.swap #[X, Y, none, none], swap_unlift_proof :: proofs)
 
 initialize registerUnliftExpr unliftSwap
 

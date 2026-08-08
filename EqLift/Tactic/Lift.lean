@@ -61,7 +61,7 @@ The tactic supports location specifiers like `rw` or `simp`:
 * `lift_eq at h ⊢` — applies to hypothesis `h` and the goal
 * `lift_eq at *` — applies to all hypotheses and the goal
 -/
-syntax (name := Eqlift) "lift_eq" (ppSpace location)? : tactic
+syntax (name := EqLift) "lift_eq" (ppSpace location)? : tactic
 
 elab_rules : tactic
   | `(tactic| lift_eq $[$loc]?) =>

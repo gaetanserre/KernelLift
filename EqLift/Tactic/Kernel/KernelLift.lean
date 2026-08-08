@@ -33,10 +33,10 @@ def liftComposition (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let ey ← constructMeasurableEquiv Y yLvl maxLvl
   let ez ← constructMeasurableEquiv Z tLvl maxLvl
-  let comp_lift_expr ← mkAppM ``comp_lift #[ex, ey, ez, η, κ]
+  let comp_lift_proof ← mkAppM ``comp_lift #[ex, ey, ez, η, κ]
   let (η', proofs_η) ← liftExpr η maxLvl proofs
   let (κ', proofs_κ) ← liftExpr κ maxLvl proofs_η
-  return (← mkAppM ``Kernel.comp #[η', κ'], comp_lift_expr :: proofs_κ)
+  return (← mkAppM ``Kernel.comp #[η', κ'], comp_lift_proof :: proofs_κ)
 
 initialize registerLiftExpr liftComposition
 
@@ -54,10 +54,10 @@ def liftParallelComp (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let ey ← constructMeasurableEquiv Y yLvl maxLvl
   let ez ← constructMeasurableEquiv Z zLvl maxLvl
   let et ← constructMeasurableEquiv T tLvl maxLvl
-  let parallelComp_lift_expr ← mkAppM ``parallelComp_lift #[ex, ey, ez, et, κ, η]
+  let parallelComp_lift_proof ← mkAppM ``parallelComp_lift #[ex, ey, ez, et, κ, η]
   let (κ', proofs_κ) ← liftExpr κ maxLvl proofs
   let (η', proofs_η) ← liftExpr η maxLvl proofs_κ
-  return (← mkAppM ``Kernel.parallelComp #[κ', η'], parallelComp_lift_expr :: proofs_η)
+  return (← mkAppM ``Kernel.parallelComp #[κ', η'], parallelComp_lift_proof :: proofs_η)
 
 initialize registerLiftExpr liftParallelComp
 
@@ -74,10 +74,10 @@ def liftProd (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let ey ← constructMeasurableEquiv Y yLvl maxLvl
   let ez ← constructMeasurableEquiv Z zLvl maxLvl
-  let prod_lift_expr ← mkAppM ``prod_lift #[ex, ey, ez, κ, η]
+  let prod_lift_proof ← mkAppM ``prod_lift #[ex, ey, ez, κ, η]
   let (κ', proofs_κ) ← liftExpr κ maxLvl proofs
   let (η', proofs_η) ← liftExpr η maxLvl proofs_κ
-  return (← mkAppM ``Kernel.prod #[κ', η'], prod_lift_expr :: proofs_η)
+  return (← mkAppM ``Kernel.prod #[κ', η'], prod_lift_proof :: proofs_η)
 
 initialize registerLiftExpr liftProd
 
@@ -94,10 +94,10 @@ def liftCompProd (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let ey ← constructMeasurableEquiv Y yLvl maxLvl
   let ez ← constructMeasurableEquiv Z zLvl maxLvl
-  let compProd_lift_expr ← mkAppM ``compProd_lift #[ex, ey, ez, κ, η]
+  let compProd_lift_proof ← mkAppM ``compProd_lift #[ex, ey, ez, κ, η]
   let (κ', proofs_κ) ← liftExpr κ maxLvl proofs
   let (η', proofs_η) ← liftExpr η maxLvl proofs_κ
-  return (← mkAppM ``Kernel.compProd #[κ', η'], compProd_lift_expr :: proofs_η)
+  return (← mkAppM ``Kernel.compProd #[κ', η'], compProd_lift_proof :: proofs_η)
 
 initialize registerLiftExpr liftCompProd
 
@@ -109,9 +109,9 @@ def liftId (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let (X, _, xLvl, _) ← getTypesFromKernel e
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let (X', _) ← getTypesFromMeasurableEquiv ex
-  let id_lift_expr ← mkAppM ``id_lift #[ex]
-  let mX' ← synthInstance (mkApp (Expr.const ``MeasurableSpace [maxLvl]) X')
-  return (← mkAppOptM ``Kernel.id #[X', mX'], id_lift_expr :: proofs)
+  let id_lift_proof ← mkAppM ``id_lift #[ex]
+  let mX' ← synthInstance (mkApp (mkConst ``MeasurableSpace [maxLvl]) X')
+  return (← mkAppOptM ``Kernel.id #[X', mX'], id_lift_proof :: proofs)
 
 initialize registerLiftExpr liftId
 
@@ -123,10 +123,10 @@ def liftDiscard (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let (X, _, xLvl, punitLvl) ← getTypesFromKernel e
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let (X', _) ← getTypesFromMeasurableEquiv ex
-  let discard_const := Expr.const ``discard_lift [xLvl, maxLvl, punitLvl]
-  let discard_lift_expr ← mkAppM' discard_const #[ex]
-  let discard_const := Expr.const ``Kernel.discard [maxLvl, maxLvl]
-  return (← mkAppOptM' discard_const #[X', none], discard_lift_expr :: proofs)
+  let discard_const := mkConst ``discard_lift [xLvl, maxLvl, punitLvl]
+  let discard_lift_proof ← mkAppM' discard_const #[ex]
+  let discard_const := mkConst ``Kernel.discard [maxLvl, maxLvl]
+  return (← mkAppOptM' discard_const #[X', none], discard_lift_proof :: proofs)
 
 initialize registerLiftExpr liftDiscard
 
@@ -138,8 +138,8 @@ def liftCopy (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let (X, _, xLvl, _) ← getTypesFromKernel e
   let ex ← constructMeasurableEquiv X xLvl maxLvl
   let (X', _) ← getTypesFromMeasurableEquiv ex
-  let copy_lift_expr ← mkAppM ``copy_lift #[ex]
-  return (← mkAppOptM ``Kernel.copy #[X', none], copy_lift_expr :: proofs)
+  let copy_lift_proof ← mkAppM ``copy_lift #[ex]
+  return (← mkAppOptM ``Kernel.copy #[X', none], copy_lift_proof :: proofs)
 
 initialize registerLiftExpr liftCopy
 
@@ -157,8 +157,8 @@ def liftSwap (e : Expr) (maxLvl : Level) (proofs : List Expr) :
   let ey ← constructMeasurableEquiv Y yLvl maxLvl
   let (X', _) ← getTypesFromMeasurableEquiv ex
   let (Y', _) ← getTypesFromMeasurableEquiv ey
-  let swap_lift_expr ← mkAppM ``swap_lift #[ex, ey]
-  return (← mkAppOptM ``Kernel.swap #[X', Y', none, none], swap_lift_expr :: proofs)
+  let swap_lift_proof ← mkAppM ``swap_lift #[ex, ey]
+  return (← mkAppOptM ``Kernel.swap #[X', Y', none, none], swap_lift_proof :: proofs)
 
 initialize registerLiftExpr liftSwap
 

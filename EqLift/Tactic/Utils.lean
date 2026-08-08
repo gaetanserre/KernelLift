@@ -71,7 +71,7 @@ unlifting functions. Returns the transformed equality and a proof of equality be
 and transformed expressions. -/
 def transformEquality (getLvl : Expr → MetaM Level) (lift_ref : IO.Ref (Array liftMetadata))
     (finisher_ref : IO.Ref (Array finisherMetadata)) (eq : Expr) : MetaM (Expr × Expr) := do
-  let e ← whnfR (← zetaReduce (← instantiateMVars eq))
+  let e ← whnfR <| ← zetaReduce <| ← instantiateMVars eq
   let e := e.consumeMData
   let lvl ← getLvl eq
   let some (_, lhs, rhs) := e.eq? | throwError "Expected an equality, got: {e}."

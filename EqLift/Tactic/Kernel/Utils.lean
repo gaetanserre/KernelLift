@@ -74,7 +74,7 @@ partial def getOriginalType (t : Expr) : MetaM (Expr × Level) := do
   let twhnf ← whnf t
   match twhnf.getAppFn with
   | Expr.const ``PUnit _ | Expr.const ``Unit _ =>
-    return (Expr.const ``Unit [], 0)
+    return (mkConst ``Unit [], 0)
   | Expr.const ``ULift univs =>
     return (twhnf.getAppArgs[0]!, univs[1]!)
   | Expr.const ``Prod _ =>
