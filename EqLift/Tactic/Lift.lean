@@ -52,6 +52,14 @@ def getMaxLvl (eq : Expr) : MetaM Level := do
 and finisher functions. -/
 def liftEquality := transformEquality getMaxLvl liftImplRef liftFinisherRef
 
+/-- Same as `liftEquality`, but allows specifying a universe level that will be taken into account
+when computing the maximum universe level. -/
+def liftEqualityWithLevel (Lvl : Level) (eq : Expr) : MetaM (Expr × Expr) := do
+  let getMaxLvl := fun e ↦ do
+    let univs ← collectExprUniverses e
+    computeMaxLevel <| Lvl :: univs
+  transformEquality getMaxLvl liftImplRef liftFinisherRef eq
+
 /-- Transforms an equality expression by lifting both sides to a common universe level.
 
 The tactic supports location specifiers like `rw` or `simp`:
