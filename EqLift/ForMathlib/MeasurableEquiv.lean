@@ -22,7 +22,9 @@ working with products and unit types.
 
 namespace MeasurableEquiv
 
+universe x y
+
 /-- The measurable equivalence between two `PUnit`s. -/
-abbrev punit : PUnit.{w + 1} ≃ᵐ PUnit.{x + 1} := ofUniqueOfUnique _ _
+abbrev punit : PUnit.{x + 1} ≃ᵐ PUnit.{y + 1} := ofUniqueOfUnique _ _
 
 end MeasurableEquiv
