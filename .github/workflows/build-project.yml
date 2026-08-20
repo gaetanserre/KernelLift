@@ -45,5 +45,5 @@ jobs:
       
       - name: Lint project
         run: |
-          lake exe runLinter KernelLift
+          lake exe runLinter EqLift
       
