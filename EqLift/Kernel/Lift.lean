@@ -31,6 +31,8 @@ open MeasureTheory ProbabilityTheory MeasurableEquiv
 
 namespace ProbabilityTheory.Kernel
 
+universe x y z w t
+
 variable {X : Type x} [MeasurableSpace X] {Y : Type y} [MeasurableSpace Y]
   {X' : Type w} [MeasurableSpace X'] {Y' : Type w} [MeasurableSpace Y']
 
