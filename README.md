@@ -14,6 +14,20 @@ For now, these tactics work with probability kernels, but can easily be extended
 
 ## Usage
 
+Add this in your `lakefile.toml`:
+
+```toml
+[[require]]
+name = "eqlift"
+git = "https://github.com/gaetanserre/EqLift"
+```
+
+If you're using a `lakefile.lean`, add:
+
+```lean
+require eqlift from git "https://github.com/gaetanserre/EqLift"@"latest"
+```
+
 See [`Tests.lean`](KernelLiftTests/Tests.lean) for examples of using the available tactics.
 
 See also [Kernel-Hom](https://github.com/gaetanserre/KernelHom) for a deeper use of the kernel lifting tactic in the context of translating kernel equalities into categorical equalities.
